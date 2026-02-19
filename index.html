@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0b0b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="COMPA-POL" />
+  <title>COMPA-POL</title>
+  <script>
+    (function(){
+      // Reset manual de SW/caches: abre la URL con ?reset_sw=1
+      try{
+        const u = new URL(window.location.href);
+        if (u.searchParams.get('reset_sw') !== '1') return;
+        const doneKey = 'compa_reset_sw_done_v1';
+        if (sessionStorage.getItem(doneKey) === '1') return;
+        sessionStorage.setItem(doneKey, '1');
+        (async () => {
+          try{
+            if ('serviceWorker' in navigator){
+              const regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map(r => r.unregister()));
+            }
+          }catch{}
+          try{
+            if (window.caches && typeof window.caches.keys === 'function'){
+              const keys = await window.caches.keys();
+              await Promise.all(keys.map(k => window.caches.delete(k)));
+            }
+          }catch{}
+          u.searchParams.delete('reset_sw');
+          u.searchParams.set('v', String(Date.now()));
+          window.location.replace(u.toString());
+        })();
+      }catch{}
+    })();
+  </script>
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="compa.css?v=12">
+  <style>
+    /* ===== Filiaciones: botón de alta (sin contenedor vacío visible) ===== */
+    /* Oculta SIEMPRE el wrap si no hay fichas; se mostrará por JS cuando existan */
+    #filiWrap{ display:none; }
+    #filiacionesOut:empty{ display:none; }
+
+    /* Overlay de imagen SIEMPRE por encima del bottomDock */
+    #imgOverlay{ z-index: 200500 !important; }
+  </style>
+</head>
+<body>
+<svg class="fx-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="glass-distort" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.007 0.014" numOctaves="1" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+<div id="bg" aria-hidden="true"></div>
+<div id="app">
+  <header class="hero" aria-label="Cabecera institucional">
+    <h1>COMPA·POL</h1>
+  </header>
+  <p id="status" class="muted" aria-live="polite"></p>
+
+  <input id="f" class="fileinput" type="file" accept="image/*" multiple />
+
+<div id="topDock">
+  <div class="emoji-row">
+    <label for="f" class="filebtn">↑</label>
+    <button id="btnToggleFili" type="button">⊕<span id="filiCountBadge" aria-hidden="true"></span></button>
+    <button id="btnToggleCompare" type="button">≣</button>
+  </div>
+</div>
+
+<div class="row">
+  <div class="card" id="mainCard">
+      <div id="thumbs" class="grid"></div>
+
+<!-- Filiaciones (debajo de las fotos) -->
+<div id="filiWrap">
+  <div id="filiacionesOut" class="two"></div>
+</div>
+</div>
+  <!-- Visor de imagen + edición (móvil) -->
+
+<!-- Comparecencia (debajo de las fotos) -->
+<div class="card" id="compareCard" style="display:none; margin-top:14px">
+  <div id="compareWrap">
+    <label for="docOut">Comparecencia</label>
+    <textarea id="docOut"></textarea>
+
+    <div style="margin-top:10px;text-align:right">
+      <button type="button" id="btnChatGPT">ChatGPT</button>
+    </div>
+  </div>
+</div>
+    </div>
+  <div class="card" id="bottomDock">
+    <div class="emoji-row two">
+      <button id="btnDescargar" type="button" disabled>↓</button>
+      <button id="btnLimpiar" type="button">⟳</button>
+    </div>
+  </div>
+</div>
+
+  <!-- Visor de imagen + edición (móvil) -->
+  <div id="imgOverlay" aria-hidden="true">
+    <div class="topbar">
+      <div class="t" id="ovTitle">Imagen</div>
+      
+    </div>
+    <div class="imgwrap">
+      <img id="ovImg" alt="Documento" />
+    </div>
+    <div class="formwrap">
+      <div id="ovForm"></div>
+
+    </div>
+    <button id="ovClose" type="button">Cerrar</button>
+  </div>
+
+  <!-- Modal de proceso (envío/polling) -->
+  <div id="jobOverlay" aria-hidden="true">
+    <div class="backdrop"></div>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="jobTitle">
+      <div class="title" id="jobTitle">Procesando…</div>
+      <div class="msg" id="jobMsg">Preparando envío…</div>
+      <div class="timer" id="jobTimer" aria-live="polite">Tiempo: 00:00</div>
+      <div class="bar" aria-hidden="true"><i></i></div>
+      <div class="actions">
+        <button id="jobCancel" type="button" class="secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+<script src="js/cifrado_descarga.js?v=2"></script>
+<script>
+/* ========= Config =========
+   Modo “NO SE CORTA”:
+   - Si tu backend ya es async: /process -> {job_id} (202) y /result?job_id=... -> running/done/error
+   - Si tu backend aún es sync: /process devuelve directamente el JSON final (200)
+*/
+window.API_PROCESS_CANDIDATES = [
+  `${window.location.origin}/process`,
+  "https://api.0904198.xyz/process"
+];
+window.API_RESULT_CANDIDATES = [
+  `${window.location.origin}/result`,
+  "https://api.0904198.xyz/result"
+];
+const API_PROCESS = window.API_PROCESS_CANDIDATES[0];
+const API_RESULT  = window.API_RESULT_CANDIDATES[0];
+const MAX = 1200;
+const JPEG_QUALITY = 0.9;
+
+/* ========= Estado ========= */
+const state = {
+  images: [],       // {name, base64, w, h}
+  lastJson: null,   // JSON de trabajo (con overrides aplicados)
+  aiJson: null,     // JSON base devuelto por IA (sin overrides)
+  thumbOverrides: {}, // { [idx:number]: { domicilio?: string, telefono?: string } }
+  polling: false,
+  abort: null
+};
+
+function updateMainContentVisibility(){
+  const hasFili = getFiliCount() > 0;
+  const has =
+    (state.images && state.images.length > 0) || hasFili;
+
+  const hasImages = !!(state.images && state.images.length > 0);
+  document.body.classList.toggle('no-images', !hasImages);
+  document.body.classList.toggle('has-content', has);
+}
+
+const el = {
+  f: document.getElementById('f'),
+  thumbs: document.getElementById('thumbs'),
+  docText: document.getElementById('docText'),
+  btnEnviar: document.getElementById('btnEnviar'),
+  btnCancelar: document.getElementById('btnCancelar'),
+  btnLimpiar: document.getElementById('btnLimpiar'),
+  btnDescargar: document.getElementById('btnDescargar'),
+  btnCompartir: document.getElementById('btnCompartir'),
+  btnToggleCompare: document.getElementById('btnToggleCompare'),
+  status: document.getElementById('status'),
+  docOut: document.getElementById('docOut'),
+  filiWrap: document.getElementById('filiWrap'),
+  filiacionesOut: document.getElementById('filiacionesOut'),
+  filiCountBadge: document.getElementById('filiCountBadge'),
+  btnToggleFili: document.getElementById('btnToggleFili'),
+};
+el.jobOverlay = document.getElementById('jobOverlay');
+el.jobTitle   = document.getElementById('jobTitle');
+el.jobMsg     = document.getElementById('jobMsg');
+el.jobTimer   = document.getElementById('jobTimer');
+el.jobCancel  = document.getElementById('jobCancel');
+
+/* ========= Helpers ========= */
+function updateFiliCountBadge(){
+  const b = el.filiCountBadge;
+  if (!b) return;
+  const n = Array.isArray(state?.lastJson?.filiaciones) ? state.lastJson.filiaciones.length : 0;
+  b.textContent = n ? String(n) : "";
+  b.style.display = n ? "inline-flex" : "none";
+}
+
+function getFiliCount(){
+  return Array.isArray(state?.lastJson?.filiaciones) ? state.lastJson.filiaciones.length : 0;
+}
+
+function updateFiliUI(){
+  const n = getFiliCount();
+
+  // Badge
+  updateFiliCountBadge();
+  document.body.classList.toggle('fili-has', n > 0);
+
+  // Si NO hay filiaciones, el contenedor NO debe verse nunca
+  if (el.filiWrap) el.filiWrap.style.display = n ? '' : 'none';
+  if (el.filiacionesOut) el.filiacionesOut.style.display = n ? '' : 'none';
+  updateMainContentVisibility();
+}
+let _filiDelegated = false;
+function ensureFiliDelegation(){
+  if (_filiDelegated) return;
+  if (!el.filiacionesOut) return;
+  _filiDelegated = true;
+
+  const handler = (ev) => {
+    const t = ev.target;
+    if (!t || !t.getAttribute) return;
+    const fi = t.getAttribute('data-fi');
+    const k  = t.getAttribute('data-k');
+    if (fi == null || k == null) return;
+
+    const i = Number(fi);
+    if (!Number.isFinite(i)) return;
+
+    if (!state.lastJson || typeof state.lastJson !== 'object') state.lastJson = {};
+    if (!Array.isArray(state.lastJson.filiaciones)) state.lastJson.filiaciones = [];
+    if (!state.lastJson.filiaciones[i] || typeof state.lastJson.filiaciones[i] !== 'object') {
+      state.lastJson.filiaciones[i] = {};
+    }
+
+    state.lastJson.filiaciones[i][k] = t.value;
+
+    // Persistencia de Condición (front-end) aunque vuelva del backend
+    if (k === "Condición"){
+      try{ _ensureOverride(i).condicion = t.value; }catch(e){}
+    }
+  };
+
+  // Captura tanto input (teclado) como change (selects)
+  el.filiacionesOut.addEventListener('input', handler);
+  el.filiacionesOut.addEventListener('change', handler);
+}
+function setStatus(msg, kind="muted"){
+  // Puede no existir #status (según layout). No debe romper toda la app.
+  if (!el.status) return;
+  el.status.className = kind === "ok" ? "ok" : kind === "err" ? "err" : "muted";
+  el.status.textContent = msg || "";
+}
+
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+
+function renderThumbs(){
+  el.thumbs.innerHTML = state.images.map((it, idx) => `
+    <div class="thumb">
+      <img src="${it.base64}" alt="${escapeHtml(it.name)}" data-thumb="${idx}">
+      <div class="small" title="${escapeHtml(it.name)}"><b>${escapeHtml(it.name)}</b></div>
+      <div class="muted small">${it.w}×${it.h}</div>
+      <div class="thumb-actions">
+        <button type="button" data-save="${idx}" aria-label="Guardar en el dispositivo">↧</button>
+        <button type="button" data-del="${idx}" aria-label="Quitar">✕</button>
+      </div>
+    </div>
+  `).join("");
+
+  [...el.thumbs.querySelectorAll('button[data-del]')].forEach(b=>{
+    b.onclick = () => {
+  const imgIdx = Number(b.getAttribute('data-del'));
+  const img = state.images?.[imgIdx];
+  if (!img) return;
+
+  const removedFi = Number.isFinite(Number(img.fi)) ? Number(img.fi) : imgIdx;
+
+  // 1) borra imagen (por índice de miniatura)
+  state.images.splice(imgIdx, 1);
+
+  // 2) borra la filiación asociada (por fi)
+  if (Array.isArray(state.lastJson?.filiaciones) && state.lastJson.filiaciones.length > removedFi){
+    state.lastJson.filiaciones.splice(removedFi, 1);
+  }
+  if (Array.isArray(state.aiJson?.filiaciones) && state.aiJson.filiaciones.length > removedFi){
+    state.aiJson.filiaciones.splice(removedFi, 1);
+  }
+
+  // 3) reindexa fi de las imágenes restantes (porque ha cambiado el índice de filiación)
+  for (const im of (state.images || [])){
+    const f = Number(im?.fi);
+if (Number.isFinite(f) && f > removedFi) { im.fi = f - 1; im.name = `Filiación ${im.fi+1}`; }
+  }
+
+  // 4) reindexa overrides por índice de filiación
+  try{ shiftThumbOverridesAfterRemoval(removedFi); }catch{}
+
+  renderThumbs();
+  if (state.lastJson) renderFiliaciones(state.lastJson);
+};
+  });
+
+  [...el.thumbs.querySelectorAll('button[data-save]')].forEach(b=>{
+    b.onclick = async () => {
+      const i = Number(b.getAttribute('data-save'));
+      try{
+        await shareOrDownloadImage(i);
+      }catch(e){
+        console.error(e);
+        setStatus('No se pudo guardar/compartir.', 'err');
+      }
+    };
+  });
+
+  // Click en miniatura -> overlay rápido (domicilio/teléfono)
+  [...el.thumbs.querySelectorAll('img[data-thumb]')].forEach(img => {
+    img.style.cursor = 'pointer';
+    img.onclick = () => {
+      const i = Number(img.getAttribute('data-thumb'));
+      openThumbOverlay(i);
+    };
+  });
+}
+
+function _ensureOverride(i){
+  const k = String(i);
+  if (!state.thumbOverrides || typeof state.thumbOverrides !== 'object') state.thumbOverrides = {};
+  if (!state.thumbOverrides[k] || typeof state.thumbOverrides[k] !== 'object') {
+    state.thumbOverrides[k] = { domicilio:"", telefono:"", condicion:"" };
+  } else {
+    // compat con versiones anteriores
+    if (typeof state.thumbOverrides[k].domicilio !== 'string') state.thumbOverrides[k].domicilio = "";
+    if (typeof state.thumbOverrides[k].telefono  !== 'string') state.thumbOverrides[k].telefono  = "";
+    if (typeof state.thumbOverrides[k].condicion !== 'string') state.thumbOverrides[k].condicion = "";
+  }
+  return state.thumbOverrides[k];
+}
+
+function shiftThumbOverridesAfterRemoval(removedIdx){
+  // thumbOverrides guarda claves como strings "0","1",...
+  const src = (state.thumbOverrides && typeof state.thumbOverrides === 'object') ? state.thumbOverrides : {};
+  const dst = {};
+  const keys = Object.keys(src);
+  for (const k of keys){
+    const n = Number(k);
+    if (!Number.isFinite(n)) continue;
+    if (n < removedIdx) dst[String(n)] = src[k];
+    else if (n > removedIdx) dst[String(n - 1)] = src[k];
+    // si n === removedIdx, se descarta
+  }
+  state.thumbOverrides = dst;
+}
+
+function applyThumbOverrides(){
+  // Aplica overrides sobre state.lastJson usando state.aiJson como base.
+  if (!state.lastJson || !Array.isArray(state.lastJson.filiaciones)) return;
+  if (!state.aiJson || !Array.isArray(state.aiJson.filiaciones)) return;
+
+  const n = Math.min(state.lastJson.filiaciones.length, state.aiJson.filiaciones.length);
+  for (let i = 0; i < n; i++){
+    const base = state.aiJson.filiaciones[i] || {};
+    const cur  = state.lastJson.filiaciones[i] || {};
+    const ov = state.thumbOverrides?.[String(i)];
+
+    // DOMICILIO: si hay override -> pisa; si no, vuelve al de IA
+    if (ov && String(ov.domicilio || '').trim()){
+      cur["Domicilio"] = String(ov.domicilio).trim();
+    } else {
+      cur["Domicilio"] = typeof base["Domicilio"] === 'string' ? base["Domicilio"] : (cur["Domicilio"] || "");
+    }
+
+    // TELÉFONO: si hay override -> añade campo; si no, elimina si existe
+    if (ov && String(ov.telefono || '').trim()){
+      cur["Teléfono"] = String(ov.telefono).trim();
+    } else {
+      if ("Teléfono" in cur) delete cur["Teléfono"]; // requisito: no se rellena si vacío
+    }
+
+    // CONDICIÓN: dato FRONT-END. Si hay override, siempre pisa lo que venga del backend.
+    if (ov && String(ov.condicion || '').trim()){
+      cur["Condición"] = String(ov.condicion).trim();
+    }
+
+    state.lastJson.filiaciones[i] = cur;
+  }
+}
+
+
+function renderFiliaciones(obj){
+  const arr = obj?.filiaciones || obj?.filiaciones_incorporadas || obj?.filiacion || [];
+  if (!Array.isArray(arr) || arr.length === 0){
+    // Sin fichas: no debe verse ningún contenedor vacío
+    if (el.filiacionesOut) el.filiacionesOut.innerHTML = ``;
+    updateFiliUI();
+    return;
+  }
+
+  if (el.filiWrap) el.filiWrap.style.display = '';
+  if (el.filiacionesOut) el.filiacionesOut.style.display = '';
+  // Normaliza y asegura que los cambios queden en memoria (hasta Limpiar)
+  if (state.lastJson && Array.isArray(state.lastJson.filiaciones)) {
+    // ok
+  } else {
+    state.lastJson = state.lastJson || {};
+    state.lastJson.filiaciones = JSON.parse(JSON.stringify(arr));
+  }
+
+  const schema = [
+    "Condición",
+    "Nombre","Apellidos","Tipo de documento","Nº Documento","Sexo",
+    "Nacionalidad","Fecha de nacimiento","Lugar de nacimiento",
+    "Nombre de los Padres","Domicilio","Teléfono"
+  ];
+
+  const safeImg = (fi) => {
+    const nfi = Number(fi);
+    const it = Array.isArray(state.images)
+      ? state.images.find(im => Number(im?.fi) === nfi)
+      : null;
+return (it?.base64 || "");
+  };
+
+  const cardHtml = (p, i) => {
+    const title = `Filiación ${i+1}`;
+    return `
+      <div class="fili-card" data-fi="${i}">
+        <div class="fili-head">
+          <div class="fili-title">${escapeHtml(title)}</div>
+          <div class="fili-actions">
+           ${ (p && p.__manual)
+  ? `<button type="button" class="btnmini" data-del-fi="${i}">Eliminar</button>`
+  : ( safeImg(i)
+      ? `<button type="button" class="btnmini" data-view="${i}">Ver imagen</button>`
+      : ``
+    )
+}
+          </div>
+        </div>
+        <div class="fili-grid">
+          ${schema.map(k => {
+            const v = (p && typeof p === "object" && typeof p[k] === "string") ? p[k] : "";
+            const id = `fi_${i}_${k.replaceAll(' ','_').replaceAll('º','o').replaceAll('/','_')}`;
+            return `
+              <div>
+                <label for="${escapeHtml(id)}">${escapeHtml(k)}</label>
+                ${k === "Condición" ? `
+                  <select id="${escapeHtml(id)}" data-fi="${i}" data-k="Condición">
+                    <option value=""></option>
+                    <option value="Perjudicado">Perjudicado</option>
+                    <option value="Testigo">Testigo</option>
+                    <option value="Víctima">Víctima</option>
+                    <option value="Requirente">Requirente</option>
+                    <option value="Denunciado">Denunciado</option>
+                    <option value="Identificado">Identificado</option>
+                    <option value="Infractor">Infractor</option>
+                  </select>
+                ` : `
+                  <input id="${escapeHtml(id)}" data-fi="${i}" data-k="${escapeHtml(k)}" value="${escapeHtml(v)}" />
+                `}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  };
+
+  el.filiacionesOut.innerHTML = arr.map((p,i)=>cardHtml(p,i)).join("");
+  updateFiliUI();
+  // Delegación: imprescindible porque filiaciones_ui.js puede reemplazar inputs por selects
+  ensureFiliDelegation();
+
+  // Sincroniza el valor del select Condición tras render
+  el.filiacionesOut.querySelectorAll('select[data-fi][data-k="Condición"]').forEach(sel => {
+    const i = Number(sel.getAttribute('data-fi'));
+    const cur = (arr[i] && typeof arr[i] === 'object') ? (arr[i]["Condición"] || "") : "";
+    sel.value = String(cur || "");
+  });
+
+  // Botón ver imagen -> overlay
+  el.filiacionesOut.querySelectorAll('button[data-view]').forEach(b => {
+    b.addEventListener('click', () => {
+      const i = Number(b.getAttribute('data-view'));
+      openFiliacionOverlay(i);
+    });
+  });
+
+  // Botón eliminar (solo para filiaciones sin imagen)
+  el.filiacionesOut.querySelectorAll('button[data-del-fi]').forEach(b => {
+    b.addEventListener('click', () => {
+      const i = Number(b.getAttribute('data-del-fi'));
+      const ok = confirm(`¿Eliminar la filiación ${i+1}?`);
+      if (!ok) return;
+
+      // 1) Borra la filiación (índice real del array filiaciones)
+      if (!state.lastJson) state.lastJson = {};
+      if (!Array.isArray(state.lastJson.filiaciones)) state.lastJson.filiaciones = [];
+      state.lastJson.filiaciones.splice(i, 1);
+
+      // 2) Si existe imagen vinculada por fi==i, la borramos. (NO por índice del array images)
+      if (Array.isArray(state.images) && state.images.length){
+        const imgIdx = state.images.findIndex(im => Number(im?.fi) === i);
+        if (imgIdx >= 0){
+          state.images.splice(imgIdx, 1);
+        }
+        // Reindexa fi de las imágenes restantes: todo lo que estaba por encima baja 1
+        for (const im of state.images){
+          const f = Number(im?.fi);
+if (Number.isFinite(f) && f > i) { im.fi = f - 1; im.name = `Filiación ${im.fi+1}`; }
+        }
+        renderThumbs();
+      }
+
+      // 3) Mantener aiJson alineado (mismo índice de filiaciones)
+      if (state.aiJson && Array.isArray(state.aiJson.filiaciones)) state.aiJson.filiaciones.splice(i, 1);
+
+      // 4) Reindexa overrides (si borras una filiación intermedia, las claves posteriores bajan 1)
+      try{ shiftThumbOverridesAfterRemoval(i); }catch(e){
+        if (state.thumbOverrides && typeof state.thumbOverrides === 'object') delete state.thumbOverrides[String(i)];
+      }
+
+      renderFiliaciones(state.lastJson);
+      setExportEnabled(!!state.lastJson);
+    });
+  });
+}
+
+function setBusy(on){
+  if (el.btnEnviar) el.btnEnviar.disabled = !!on;
+  if (el.btnCancelar) el.btnCancelar.disabled = !on;
+}
+
+function setExportEnabled(on){
+  if (el.btnDescargar) el.btnDescargar.disabled = !on;
+  if (el.btnCompartir) el.btnCompartir.disabled = !on;
+}
+
+function getJsonString(){
+  return JSON.stringify(state.lastJson ?? {}, null, 2);
+}
+
+function downloadText(filename, text){
+  const blob = new Blob([text], {type: 'application/json;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function dataUrlToBlob(dataUrl){
+  const s = String(dataUrl || "");
+  const comma = s.indexOf(',');
+  if (comma < 0) return new Blob([], {type:'application/octet-stream'});
+  const header = s.slice(0, comma);
+  const b64 = s.slice(comma + 1);
+  const m = /data:([^;]+);base64/i.exec(header);
+  const mime = (m && m[1]) ? m[1] : 'application/octet-stream';
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  return new Blob([u8], {type:mime});
+}
+
+async function shareOrDownloadImage(idx){
+  const it = state.images?.[idx];
+  if (!it || !it.base64) return;
+
+  const blob = dataUrlToBlob(it.base64);
+  const ext = (blob.type === 'image/png') ? 'png' : 'jpg';
+  const name = (it.name && String(it.name).trim()) ? String(it.name).trim() : `imagen_${idx+1}.${ext}`;
+  const file = new File([blob], name, {type: blob.type || 'image/jpeg'});
+
+  // iOS: si aparece “Guardar imagen” en la hoja de compartir, el usuario puede mandarla a Fotos.
+  try{
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))) {
+      await navigator.share({ files:[file], title:'Imagen', text:'' });
+      setStatus('Abierta hoja de compartir.', 'ok');
+      return;
+    }
+  }catch(e){
+    // si el usuario cancela share, no lo tratamos como error
+    const msg = String(e?.message || '').toLowerCase();
+    if (msg.includes('abort') || msg.includes('cancel')) return;
+  }
+
+  // Fallback: descarga (en iOS suele ir a Archivos/Descargas)
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  setStatus('Descargando imagen…', 'muted');
+}
+
+if (el.btnEnviar) el.btnEnviar.onclick = async () => {
+  setStatus("Enviando…");
+  showJobOverlay('Enviando…', 'Subiendo datos al servidor…');
+  setBusy(true);
+  state.polling = true;
+  const t0 = performance.now();
+  let finishedOk = false;
+  let totalSecs = 0;
+
+  const payload = {
+    images_base64: state.images.map(x => x.base64),
+    texto: el.docText?.value || ""
+  };
+  
+  try{
+    const start = await startJob(payload);
+
+    if (start.mode === 'sync'){
+      updateJobOverlay('Recibiendo respuesta…', 'Procesando…');
+    } else {
+      updateJobOverlay('Procesando… (esperando resultado)', 'Procesando…');
+    }
+
+    let out;
+    if (start.mode === "sync"){
+      out = start.out;
+    } else {
+      setStatus("Procesando…");
+      updateJobOverlay('Procesando… (consultando resultado)', 'Procesando…');
+      out = await pollResult(start.job_id);
+    }
+
+    // ---- Normaliza salida (algunos backends envuelven el resultado en {out:{...}} o {data:{...}})
+    const OUT = (out && typeof out === 'object' && (out.out && typeof out.out === 'object')) ? out.out :
+                (out && typeof out === 'object' && (out.data && typeof out.data === 'object')) ? out.data :
+                out;
+    if (OUT && typeof OUT === "object"){
+      if (!Array.isArray(OUT.filiaciones) && Array.isArray(OUT.filiaciones_incorporadas)){
+        OUT.filiaciones = OUT.filiaciones_incorporadas;
+      }
+      if (!Array.isArray(OUT.filiaciones) && Array.isArray(OUT.filiacion)){
+        OUT.filiaciones = OUT.filiacion;
+      }
+    }
+    // Mapear salida de IA por filiación real (fi) en vez de por índice de respuesta.
+    // El backend devuelve filiaciones en el orden de images_base64; cada imagen conoce su fi.
+    const mappedOut = JSON.parse(JSON.stringify(OUT || {}));
+    if (Array.isArray(mappedOut.filiaciones) && Array.isArray(state.images) && state.images.length){
+      const remap = [];
+      for (let i = 0; i < mappedOut.filiaciones.length; i++){
+        const fi = Number(state.images[i]?.fi);
+        const targetFi = (Number.isFinite(fi) && fi >= 0) ? fi : i;
+        remap[targetFi] = mappedOut.filiaciones[i];
+      }
+      mappedOut.filiaciones = remap;
+    }
+
+    // Guardamos el JSON base de IA y creamos un JSON de trabajo (editable + overrides)
+    state.aiJson = JSON.parse(JSON.stringify(mappedOut || {}));
+    const prev = JSON.parse(JSON.stringify(state.lastJson || {}));
+    state.lastJson = JSON.parse(JSON.stringify(mappedOut || {}));
+    if (Array.isArray(prev?.filiaciones)){
+      if (!Array.isArray(state.lastJson.filiaciones)) state.lastJson.filiaciones = [];
+      for (let i = 0; i < prev.filiaciones.length; i++){
+        const oldFi = prev.filiaciones[i];
+        if (!oldFi || typeof oldFi !== "object") continue;
+
+        // Si backend no devolvió esta filiación, conserva la que ya teníamos.
+        if (!state.lastJson.filiaciones[i] || typeof state.lastJson.filiaciones[i] !== "object"){
+          state.lastJson.filiaciones[i] = JSON.parse(JSON.stringify(oldFi));
+          continue;
+        }
+
+        // Si sí existe, completa huecos sin pisar lo nuevo del backend.
+        for (const k in oldFi){
+          const v = oldFi[k];
+          if (typeof v !== "string" || !v.trim()) continue;
+          const cur = state.lastJson.filiaciones[i][k];
+          if (!cur || !String(cur).trim()){
+            state.lastJson.filiaciones[i][k] = v;
+          }
+        }
+      }
+    }
+    // Aplica overrides de miniaturas (domicilio/teléfono)
+    try{ applyThumbOverrides(); }catch(e){}
+
+    setExportEnabled(!!state.lastJson);
+
+    const docCandidate =
+      (typeof OUT?.doc === 'string' && OUT.doc) ||
+      (typeof OUT?.comparecencia === 'string' && OUT.comparecencia) ||
+      (typeof OUT?.doc_texto === 'string' && OUT.doc_texto) ||
+      (typeof OUT?.respuesta_modelo === 'string' && OUT.respuesta_modelo) ||
+      (typeof OUT?.texto === 'string' && OUT.texto) ||
+      "";
+
+    el.docOut.value = docCandidate;
+
+    // Debug visible (sin consola): si viene vacío, muestro claves para saber qué está llegando
+    if (!docCandidate) {
+      const keys = (OUT && typeof OUT === 'object') ? Object.keys(OUT).slice(0, 25).join(', ') : String(typeof OUT);
+      setStatus(`OK pero DOC vacío · claves: ${keys}`, 'err');
+    }
+
+    renderFiliaciones(state.lastJson);
+
+    totalSecs = (performance.now() - t0) / 1000;
+    setStatus(`OK · ${totalSecs.toFixed(1)}s`, "ok");
+    finishedOk = true;
+  }catch(err){
+    console.error(err);
+    if (String(err?.message || "").toLowerCase().includes("cancelled")){
+      setStatus("Cancelado.", "muted");
+    } else {
+      setStatus(`Error: ${err.message}`, "err");
+    }
+  }finally{
+    state.polling = false;
+    state.abort = null;
+    setBusy(false);
+    if (finishedOk){
+      if (typeof markJobOverlayDone === "function"){
+        markJobOverlayDone(totalSecs);
+      } else {
+        hideJobOverlay();
+      }
+    } else {
+      hideJobOverlay();
+    }
+  }
+};
+
+if (el.btnCancelar) el.btnCancelar.onclick = () => {
+  state.polling = false;
+  try{ state.abort?.abort(); }catch{}
+  // Nota: no paramos la cámara al cancelar el job
+  hideJobOverlay();
+}
+
+/* ========= Botones superiores ========= */
+(function(){
+  const bC = el.btnToggleCompare;
+  const bF = el.btnToggleFili;
+
+  const syncCompare = () => {
+    const cOn = document.body.classList.contains('compare-on');
+    if (bC){
+      bC.textContent = '≣';
+    }
+    if (bF){
+      if (bF.firstChild && bF.firstChild.nodeType === Node.TEXT_NODE) {
+        bF.firstChild.nodeValue = '⊕';
+      } else {
+        bF.insertAdjacentText('afterbegin', '⊕');
+      }
+    }
+    updateMainContentVisibility();
+    updateFiliUI();
+  };
+
+  document.body.classList.remove('compare-on');
+  syncCompare();
+
+  bC?.addEventListener('click', () => {
+    const willOn = !document.body.classList.contains('compare-on');
+    document.body.classList.toggle('compare-on', willOn);
+    syncCompare();
+  });
+})();
+
+/* ========= Añadir filiación a mano ========= */
+(function(){
+  const b = el.btnToggleFili;
+  if (!b) return;
+
+  const schema_keys = [
+    "Condición",
+    "Nombre","Apellidos","Tipo de documento","Nº Documento","Sexo",
+    "Nacionalidad","Fecha de nacimiento","Lugar de nacimiento",
+    "Nombre de los Padres","Domicilio","Teléfono"
+  ];
+
+  function ensureLastJson(){
+    if (!state.lastJson || typeof state.lastJson !== 'object') state.lastJson = {};
+    if (!Array.isArray(state.lastJson.filiaciones)) state.lastJson.filiaciones = [];
+  }
+
+  function blankFili(){
+    const it = {};
+    for (const k of schema_keys) it[k] = "";
+    // Marca interna: es una filiación creada a mano (NO debe intentar vincularse a imagen por índice)
+    // No debe salir en el JSON exportado.
+    try{
+      Object.defineProperty(it, '__manual', { value:true, enumerable:false });
+    }catch(e){
+      // fallback (si defineProperty fallase en algún entorno raro)
+      it.__manual = true;
+    }
+    return it;
+  }
+
+  b.addEventListener('click', () => {
+    ensureLastJson();
+    state.lastJson.filiaciones.push(blankFili());
+    updateFiliUI();
+
+    renderFiliaciones(state.lastJson);
+    setExportEnabled(true);
+
+    try{
+      const cards = document.querySelectorAll('.fili-card');
+      cards[cards.length - 1]?.scrollIntoView?.({behavior:'smooth', block:'start'});
+    }catch{}
+  });
+})();
+
+/* ========= Persistir edición de ComparecencIA en el JSON =========
+   - Si el backend no devuelve doc/comparecencia, al editar docOut se crea en state.lastJson.
+   - Si ya existe la clave "comparecencia" en el JSON, se mantiene esa clave; si no, se usa "doc".
+*/
+if (el.docOut){
+  el.docOut.addEventListener('input', () => {
+    if (!state.lastJson || typeof state.lastJson !== 'object') state.lastJson = {};
+
+    const v = el.docOut.value || "";
+
+    // Si el JSON ya venía con "comparecencia", seguimos actualizando esa.
+    if (Object.prototype.hasOwnProperty.call(state.lastJson, 'comparecencia')){
+      state.lastJson.comparecencia = v;
+    } else {
+      state.lastJson.doc = v;
+    }
+
+    // Si hay otra clave de texto usada por tu backend, actualízala también sin romper nada.
+    if (Object.prototype.hasOwnProperty.call(state.lastJson, 'doc_texto')){
+      state.lastJson.doc_texto = v;
+    }
+    if (Object.prototype.hasOwnProperty.call(state.lastJson, 'texto')){
+      state.lastJson.texto = v;
+    }
+
+    setExportEnabled(true);
+  });
+}
+
+// Botón ChatGPT (alternativa comparecencia)
+const btnChatGPT = document.getElementById('btnChatGPT');
+if (btnChatGPT){
+  btnChatGPT.onclick = () => {
+    window.open(
+      "https://chatgpt.com/g/g-68fe060630348191b62c44416164a37d-comparecencia",
+      "_blank",
+      "noopener"
+    );
+  };
+}
+
+/* ========= Export encriptado (wrapper CompaCifrado) ========= */
+el.btnDescargar.onclick = async () => {
+  if (!state.lastJson) return;
+  if (!window.CompaCifrado?.wrapEncryptedJSON) {
+    setStatus('Falta cifrado_descarga.js', 'err');
+    return;
+  }
+  const rnd = Math.floor(1000 + Math.random() * 9000);
+const wrappedText = await window.CompaCifrado.wrapEncryptedJSON(state.lastJson);
+
+  downloadText(`Proyecto-${rnd}.enc.json`, wrappedText);
+  setStatus('JSON ENCRIPTADO descargado.', 'ok');
+};
+
+if (el.btnCompartir) el.btnCompartir.onclick = async () => {
+  if (!state.lastJson) return;
+  const text = getJsonString();
+  try{
+    if (navigator.share) {
+      await navigator.share({ title: 'COMPA-POL JSON', text });
+      setStatus('JSON compartido.', 'ok');
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    setStatus('JSON copiado.', 'ok');
+  }catch(e){
+    console.error(e);
+    setStatus('No se pudo compartir/copiar.', 'err');
+  }
+};
+
+/* ========= Limpiar ========= */
+el.btnLimpiar.onclick = () => {
+  state.images = [];
+  state.lastJson = null;
+  state.aiJson = null;
+  state.thumbOverrides = {};
+  state.polling = false;
+  try{ state.abort?.abort(); }catch{}
+  state.abort = null;
+
+  renderThumbs();
+  if (el.docText) el.docText.value = "";
+  el.docOut.value = "";
+  el.filiacionesOut.innerHTML = "";
+  setExportEnabled(false);
+  setBusy(false);
+  closeFiliacionOverlay();
+  document.body.classList.remove('compare-on');
+  if (el.btnToggleCompare){
+    el.btnToggleCompare.textContent = '≣';
+  }
+  if (el.btnToggleFili){
+    const bF = el.btnToggleFili;
+    if (bF.firstChild && bF.firstChild.nodeType === Node.TEXT_NODE) bF.firstChild.nodeValue = '⊕';
+    else bF.insertAdjacentText('afterbegin', '⊕');
+  }
+  setStatus("Limpio.");
+  updateFiliUI();
+  updateMainContentVisibility();
+};
+
+</script>
+<script src="paises.js"></script>
+<script src="paises_iso3.js"></script>
+<script src="provincias_es.js"></script>
+<script src="municipios.js"></script>
+<script src="js/compa_crypto_resize.js?v=1"></script>
+<script src="js/filiaciones_ui.js?v=4"></script>
+<script src="js/compa_overlay_media.js?v=2"></script>
+<script src="js/prewarm_agent.js?v=1"></script>
+</body>
+</html>

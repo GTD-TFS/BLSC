@@ -1,0 +1,1842 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>COMPA OCR AutoTrainer</title>
+  <style>
+    :root{
+      --bg:#0a0d14; --card:#141b27; --line:#2b3750; --ink:#edf2ff; --muted:#9bb0d1;
+      --ok:#1f7a3f; --warn:#8f6a1d; --err:#8d2f38; --acc:#2a6ccc;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1100px 700px at 50% -10%,#1c2940 0%,#0d111a 50%,#090c12 100%);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:1320px;margin:0 auto;padding:14px}
+    h1{margin:0 0 4px;font-size:24px}
+    .muted{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:12px;margin-top:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    button,input,textarea,select{font:inherit;color:var(--ink);background:#101826;border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+    button{cursor:pointer}
+    button.primary{background:#1a2c4a;border-color:#31558d}
+    button.ok{background:#173725;border-color:#28663e}
+    button.warn{background:#372b14;border-color:#6d4f1d}
+    button.err{background:#3e1a1e;border-color:#7d2f35}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:12px;color:var(--muted)}
+    .kpi{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .preview{max-width:100%;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+    .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .field label{display:block;color:var(--muted);font-size:12px;margin:0 0 4px}
+    .field input{width:100%}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    textarea{width:100%;min-height:210px;resize:vertical}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    @media (max-width:980px){.grid,.split,.fields{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>COMPA OCR AutoTrainer</h1>
+    <div class="muted">Entrenamiento local automático: subes imagen, rellenas campos reales y ejecuta pruebas durante 5 minutos (o el tiempo indicado). Guarda y exporta el mejor OCR+parseo y su configuración para reutilizarla después en la app.</div>
+
+    <div class="grid">
+      <section class="card">
+        <div class="row">
+          <input id="file" type="file" accept="image/*" />
+          <button id="btnQuick" class="primary">OCR rápido</button>
+          <button id="btnAuto" class="warn">Autoentrenar</button>
+          <button id="btnStop" class="err" disabled>Parar</button>
+          <label class="badge">Tiempo (s)
+            <input id="budgetSec" type="number" min="30" max="1200" step="5" value="300" style="width:84px;padding:4px 6px" />
+          </label>
+          <span id="status" class="badge">Listo</span>
+        </div>
+
+        <img id="preview" class="preview" alt="preview" style="display:none" />
+
+        <div class="kpi">
+          <span class="badge">Intentos: <b id="kTries">0</b></span>
+          <span class="badge">OCR runs: <b id="kRuns">0</b></span>
+          <span class="badge">Mejor score: <b id="kScore">0.000</b></span>
+          <span class="badge">Conf OCR: <b id="kConf">0.0</b></span>
+          <span class="badge">Tiempo: <b id="kElapsed">0.0s</b></span>
+          <span class="badge">Modelo v: <b id="kModel">0</b></span>
+          <span class="badge">Muestras: <b id="kSamples">0</b></span>
+        </div>
+
+        <div class="split">
+          <div>
+            <div class="muted">OCR bruto (mejor intento)</div>
+            <textarea id="ocrBest" class="mono"></textarea>
+          </div>
+          <div>
+            <div class="muted">Parseo (mejor intento)</div>
+            <textarea id="parseBest" class="mono"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <button id="btnSaveSample" class="ok">Guardar muestra</button>
+          <button id="btnExportModel">Exportar pack</button>
+          <button id="btnImportModel">Importar pack</button>
+          <button id="btnApplyApp" class="primary">Aplicar pack a app (LS)</button>
+          <button id="btnReset" class="err">Reset local</button>
+          <input id="fileImport" type="file" accept="application/json" style="display:none" />
+        </div>
+
+        <div class="muted" style="margin-top:8px">Campos reales (ground truth)</div>
+        <div id="fieldsTruth" class="fields"></div>
+
+        <div class="muted" style="margin-top:10px">Pack OCR entrenado (para integrar)</div>
+        <textarea id="configOut" class="mono" style="min-height:210px"></textarea>
+      </section>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script>
+  (() => {
+    "use strict";
+
+    const APP_PACK_KEY = "compa_local_ocr_pack_v1";
+    const LS_SAMPLES = "ocr_autotrainer_samples_v2";
+    const LS_MODEL = "ocr_autotrainer_model_v2";
+
+    const FIELDS = [
+      "Condición","Nombre","Apellidos","Tipo de documento","Nº Documento","Sexo",
+      "Nacionalidad","Fecha de nacimiento","Lugar de nacimiento","Nombre de los Padres","Domicilio","Teléfono"
+    ];
+
+    const FIELD_WEIGHT = {
+      "Nombre": 1.8,
+      "Apellidos": 2.0,
+      "Nº Documento": 2.7,
+      "Fecha de nacimiento": 1.5,
+      "Sexo": 1.1,
+      "Nacionalidad": 1.0,
+      "Tipo de documento": 1.1,
+      "Lugar de nacimiento": 0.8,
+      "Domicilio": 0.8,
+      "Teléfono": 0.6,
+      "Nombre de los Padres": 0.6,
+      "Condición": 0.3
+    };
+
+    const EL = {
+      file: document.getElementById("file"),
+      btnQuick: document.getElementById("btnQuick"),
+      btnAuto: document.getElementById("btnAuto"),
+      btnStop: document.getElementById("btnStop"),
+      budgetSec: document.getElementById("budgetSec"),
+      status: document.getElementById("status"),
+      preview: document.getElementById("preview"),
+      ocrBest: document.getElementById("ocrBest"),
+      parseBest: document.getElementById("parseBest"),
+      fieldsTruth: document.getElementById("fieldsTruth"),
+      btnSaveSample: document.getElementById("btnSaveSample"),
+      btnExportModel: document.getElementById("btnExportModel"),
+      btnImportModel: document.getElementById("btnImportModel"),
+      btnApplyApp: document.getElementById("btnApplyApp"),
+      btnReset: document.getElementById("btnReset"),
+      fileImport: document.getElementById("fileImport"),
+      configOut: document.getElementById("configOut"),
+      kTries: document.getElementById("kTries"),
+      kRuns: document.getElementById("kRuns"),
+      kScore: document.getElementById("kScore"),
+      kConf: document.getElementById("kConf"),
+      kElapsed: document.getElementById("kElapsed"),
+      kModel: document.getElementById("kModel"),
+      kSamples: document.getElementById("kSamples")
+    };
+
+    const S = {
+      dataUrl: "",
+      running: false,
+      stop: false,
+      tries: 0,
+      ocrRuns: 0,
+      elapsed: 0,
+      best: null,
+      worker: null,
+      samples: loadJSON(LS_SAMPLES, []),
+      model: loadJSON(LS_MODEL, {
+        version: 0,
+        profiles: [],
+        parse_hints: {},
+        lexicon: {},
+        stats: { total_runs: 0, total_attempts: 0 }
+      })
+    };
+
+    buildTruthFields();
+    refreshKpi();
+    refreshPackOut();
+
+    function setStatus(msg){ EL.status.textContent = msg; }
+    function loadJSON(k, fallback){
+      try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v == null ? fallback : v; }
+      catch { return fallback; }
+    }
+    function saveJSON(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+    function buildTruthFields(){
+      EL.fieldsTruth.innerHTML = "";
+      for (const f of FIELDS){
+        const d = document.createElement("div");
+        d.className = "field";
+        d.innerHTML = `<label>${f}</label><input data-k="${f}" />`;
+        EL.fieldsTruth.appendChild(d);
+      }
+    }
+
+    function getTruth(){
+      const out = {};
+      EL.fieldsTruth.querySelectorAll("input[data-k]").forEach((inp) => {
+        out[inp.dataset.k] = String(inp.value || "").trim();
+      });
+      return out;
+    }
+
+    function norm(s){
+      return String(s || "")
+        .toUpperCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[‘’´`]/g, "'")
+        .replace(/[«»]/g, "<")
+        .replace(/[^A-Z0-9<\/\-\.,:;()'\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function tokenize(s){
+      return norm(s).split(" ").filter((x) => x.length > 1);
+    }
+
+    function dice(a, b){
+      const x = norm(a);
+      const y = norm(b);
+      if (!x && !y) return 1;
+      if (!x || !y) return 0;
+      if (x === y) return 1;
+      function grams(s){
+        const g = [];
+        if (s.length < 2) return [s];
+        for (let i = 0; i < s.length - 1; i++) g.push(s.slice(i, i + 2));
+        return g;
+      }
+      const gx = grams(x);
+      const gy = grams(y);
+      const m = new Map();
+      for (const g of gx) m.set(g, (m.get(g) || 0) + 1);
+      let hit = 0;
+      for (const g of gy){
+        const c = m.get(g) || 0;
+        if (c > 0){ hit++; m.set(g, c - 1); }
+      }
+      return (2 * hit) / Math.max(1, gx.length + gy.length);
+    }
+
+    function levenshtein(a, b){
+      const x = norm(a);
+      const y = norm(b);
+      const m = x.length;
+      const n = y.length;
+      if (!m) return n;
+      if (!n) return m;
+      const dp = new Array(n + 1);
+      for (let j = 0; j <= n; j++) dp[j] = j;
+      for (let i = 1; i <= m; i++){
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= n; j++){
+          const tmp = dp[j];
+          const cost = x[i - 1] === y[j - 1] ? 0 : 1;
+          dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+          prev = tmp;
+        }
+      }
+      return dp[n];
+    }
+
+    function sim(a, b){
+      const na = norm(a);
+      const nb = norm(b);
+      if (!na && !nb) return 1;
+      if (!na || !nb) return 0;
+      const d = dice(na, nb);
+      const lev = levenshtein(na, nb);
+      const levRatio = 1 - (lev / Math.max(1, Math.max(na.length, nb.length)));
+      return (d * 0.6) + (Math.max(0, levRatio) * 0.4);
+    }
+
+    function toImage(dataUrl){
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("No se pudo cargar imagen"));
+        img.src = dataUrl;
+      });
+    }
+
+    function canvasFromImage(img, scale){
+      const s = Math.max(0.4, Number(scale || 1));
+      const w = Math.max(1, Math.floor((img.naturalWidth || img.width || 1) * s));
+      const h = Math.max(1, Math.floor((img.naturalHeight || img.height || 1) * s));
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext("2d");
+      if (ctx) ctx.drawImage(img, 0, 0, w, h);
+      return c;
+    }
+
+    function cloneCanvas(src){
+      const c = document.createElement("canvas");
+      c.width = src.width;
+      c.height = src.height;
+      c.getContext("2d")?.drawImage(src, 0, 0);
+      return c;
+    }
+
+    function rotateCanvas(src, deg){
+      if (!deg) return cloneCanvas(src);
+      const rad = deg * Math.PI / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      const nw = Math.max(1, Math.floor(src.width * cos + src.height * sin));
+      const nh = Math.max(1, Math.floor(src.width * sin + src.height * cos));
+      const c = document.createElement("canvas");
+      c.width = nw;
+      c.height = nh;
+      const ctx = c.getContext("2d");
+      if (!ctx) return cloneCanvas(src);
+      ctx.translate(nw / 2, nh / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(src, -src.width / 2, -src.height / 2);
+      return c;
+    }
+
+    function cropCanvas(src, box){
+      const rx = Math.max(0, Math.min(1, Number(box?.rx ?? 0)));
+      const ry = Math.max(0, Math.min(1, Number(box?.ry ?? 0)));
+      const rw = Math.max(0.02, Math.min(1, Number(box?.rw ?? 1)));
+      const rh = Math.max(0.02, Math.min(1, Number(box?.rh ?? 1)));
+      const sx = Math.floor(src.width * rx);
+      const sy = Math.floor(src.height * ry);
+      const sw = Math.max(1, Math.floor(src.width * rw));
+      const sh = Math.max(1, Math.floor(src.height * rh));
+      const c = document.createElement("canvas");
+      c.width = sw;
+      c.height = sh;
+      c.getContext("2d")?.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+      return c;
+    }
+
+    function grayscaleData(im){
+      const d = im.data;
+      for (let i = 0; i < d.length; i += 4){
+        const y = (0.299 * d[i]) + (0.587 * d[i + 1]) + (0.114 * d[i + 2]);
+        const v = y | 0;
+        d[i] = v;
+        d[i + 1] = v;
+        d[i + 2] = v;
+      }
+    }
+
+    function autocontrast(ctx, w, h){
+      const im = ctx.getImageData(0, 0, w, h);
+      const d = im.data;
+      let min = 255;
+      let max = 0;
+      for (let i = 0; i < d.length; i += 4){
+        const v = d[i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const span = Math.max(1, max - min);
+      for (let i = 0; i < d.length; i += 4){
+        const v = Math.max(0, Math.min(255, Math.round(((d[i] - min) * 255) / span)));
+        d[i] = v;
+        d[i + 1] = v;
+        d[i + 2] = v;
+      }
+      ctx.putImageData(im, 0, 0);
+    }
+
+    function gamma(ctx, w, h, g){
+      const inv = 1 / Math.max(0.2, Number(g || 1));
+      const im = ctx.getImageData(0, 0, w, h);
+      const d = im.data;
+      for (let i = 0; i < d.length; i += 4){
+        d[i] = Math.round(Math.pow(d[i] / 255, inv) * 255);
+        d[i + 1] = d[i];
+        d[i + 2] = d[i];
+      }
+      ctx.putImageData(im, 0, 0);
+    }
+
+    function sharpen(ctx, w, h, amount){
+      const a = Math.max(0, Math.min(1.6, Number(amount || 0)));
+      if (!a) return;
+      const src = ctx.getImageData(0, 0, w, h);
+      const dst = ctx.createImageData(w, h);
+      const s = src.data;
+      const d = dst.data;
+      const k = [0, -1, 0, -1, 5, -1, 0, -1, 0];
+      for (let y = 1; y < h - 1; y++){
+        for (let x = 1; x < w - 1; x++){
+          const idx = (y * w + x) * 4;
+          for (let c = 0; c < 3; c++){
+            let sum = 0;
+            let ki = 0;
+            for (let yy = -1; yy <= 1; yy++){
+              for (let xx = -1; xx <= 1; xx++){
+                sum += s[((y + yy) * w + (x + xx)) * 4 + c] * k[ki++];
+              }
+            }
+            const v = s[idx + c] * (1 - a) + sum * a;
+            d[idx + c] = Math.max(0, Math.min(255, Math.round(v)));
+          }
+          d[idx + 3] = s[idx + 3];
+        }
+      }
+      ctx.putImageData(dst, 0, 0);
+    }
+
+    function median3x3(ctx, w, h){
+      const src = ctx.getImageData(0, 0, w, h);
+      const dst = ctx.createImageData(w, h);
+      const s = src.data;
+      const d = dst.data;
+      for (let y = 1; y < h - 1; y++){
+        for (let x = 1; x < w - 1; x++){
+          const idx = (y * w + x) * 4;
+          const vals = [];
+          for (let yy = -1; yy <= 1; yy++){
+            for (let xx = -1; xx <= 1; xx++){
+              vals.push(s[((y + yy) * w + (x + xx)) * 4]);
+            }
+          }
+          vals.sort((a, b) => a - b);
+          const v = vals[4];
+          d[idx] = v;
+          d[idx + 1] = v;
+          d[idx + 2] = v;
+          d[idx + 3] = 255;
+        }
+      }
+      ctx.putImageData(dst, 0, 0);
+    }
+
+    function suppressHighlights(ctx, w, h){
+      const im = ctx.getImageData(0, 0, w, h);
+      const d = im.data;
+      for (let i = 0; i < d.length; i += 4){
+        const v = d[i];
+        // Reduce zonas quemadas por reflejo para recuperar trazo
+        const nv = v > 232 ? 232 : (v > 214 ? Math.round(214 + (v - 214) * 0.45) : v);
+        d[i] = nv;
+        d[i + 1] = nv;
+        d[i + 2] = nv;
+      }
+      ctx.putImageData(im, 0, 0);
+    }
+
+    function localBoost(ctx, w, h, strength){
+      const a = Math.max(0, Math.min(1.2, Number(strength || 0.35)));
+      if (!a) return;
+      const src = ctx.getImageData(0, 0, w, h);
+      const dst = ctx.createImageData(w, h);
+      const s = src.data;
+      const d = dst.data;
+      for (let y = 1; y < h - 1; y++){
+        for (let x = 1; x < w - 1; x++){
+          const idx = (y * w + x) * 4;
+          let sum = 0;
+          let cnt = 0;
+          for (let yy = -1; yy <= 1; yy++){
+            for (let xx = -1; xx <= 1; xx++){
+              sum += s[((y + yy) * w + (x + xx)) * 4];
+              cnt++;
+            }
+          }
+          const mean = sum / Math.max(1, cnt);
+          const v = s[idx];
+          const nv = Math.max(0, Math.min(255, Math.round(v + (v - mean) * a)));
+          d[idx] = nv;
+          d[idx + 1] = nv;
+          d[idx + 2] = nv;
+          d[idx + 3] = 255;
+        }
+      }
+      ctx.putImageData(dst, 0, 0);
+    }
+
+    function otsuThreshold(ctx, w, h){
+      const d = ctx.getImageData(0, 0, w, h).data;
+      const hist = new Array(256).fill(0);
+      let total = 0;
+      for (let i = 0; i < d.length; i += 4){
+        hist[d[i]]++;
+        total++;
+      }
+      let sum = 0;
+      for (let t = 0; t < 256; t++) sum += t * hist[t];
+      let sumB = 0;
+      let wB = 0;
+      let varMax = 0;
+      let thr = 127;
+      for (let t = 0; t < 256; t++){
+        wB += hist[t];
+        if (!wB) continue;
+        const wF = total - wB;
+        if (!wF) break;
+        sumB += t * hist[t];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const vb = wB * wF * (mB - mF) * (mB - mF);
+        if (vb > varMax){ varMax = vb; thr = t; }
+      }
+      return thr;
+    }
+
+    function applyThreshold(ctx, w, h, thr, invert){
+      const t = Math.max(0, Math.min(255, Number(thr || 145)));
+      const im = ctx.getImageData(0, 0, w, h);
+      const d = im.data;
+      for (let i = 0; i < d.length; i += 4){
+        let v = d[i] >= t ? 255 : 0;
+        if (invert) v = 255 - v;
+        d[i] = v;
+        d[i + 1] = v;
+        d[i + 2] = v;
+      }
+      ctx.putImageData(im, 0, 0);
+    }
+
+    function preprocess(img, cfg){
+      let c = canvasFromImage(img, cfg.scale || 2.3);
+      if (cfg.crop) c = cropCanvas(c, cfg.crop);
+      if (cfg.rotate) c = rotateCanvas(c, cfg.rotate);
+
+      const out = cloneCanvas(c);
+      const ctx = out.getContext("2d");
+      if (!ctx) return out;
+
+      const im = ctx.getImageData(0, 0, out.width, out.height);
+      grayscaleData(im);
+      ctx.putImageData(im, 0, 0);
+
+      if (cfg.autocontrast) autocontrast(ctx, out.width, out.height);
+      if (cfg.deglare) suppressHighlights(ctx, out.width, out.height);
+      if (cfg.gamma && cfg.gamma !== 1) gamma(ctx, out.width, out.height, cfg.gamma);
+      if (cfg.localBoost) localBoost(ctx, out.width, out.height, cfg.localBoost);
+      if (cfg.median) median3x3(ctx, out.width, out.height);
+      if (cfg.sharpen) sharpen(ctx, out.width, out.height, cfg.sharpen);
+
+      if (cfg.binarize){
+        const baseThr = cfg.thrMode === "otsu" ? otsuThreshold(ctx, out.width, out.height) : Number(cfg.thr || 145);
+        applyThreshold(ctx, out.width, out.height, baseThr + Number(cfg.thrDelta || 0), !!cfg.invert);
+      }
+
+      return out;
+    }
+
+    async function ensureWorker(){
+      if (S.worker) return S.worker;
+      if (!window.Tesseract) throw new Error("Tesseract.js no disponible");
+      S.worker = await Tesseract.createWorker("spa+eng");
+      return S.worker;
+    }
+
+    async function runTesseract(canvas, cfg){
+      const worker = await ensureWorker();
+      const params = {
+        tessedit_pageseg_mode: String(cfg.psm || 6),
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "300"
+      };
+      if (cfg.whitelist) params.tessedit_char_whitelist = cfg.whitelist;
+      await worker.setParameters(params);
+      const res = await worker.recognize(canvas.toDataURL("image/png"));
+      return {
+        text: String(res?.data?.text || "").trim(),
+        conf: Number(res?.data?.confidence || 0)
+      };
+    }
+
+    function mergeTexts(txts){
+      const lines = [];
+      const seen = new Set();
+      for (const t of txts){
+        const lns = String(t || "").split(/\r?\n/g).map((x) => x.trim()).filter(Boolean);
+        for (const ln of lns){
+          const k = norm(ln);
+          if (!k || seen.has(k)) continue;
+          seen.add(k);
+          lines.push(ln);
+        }
+      }
+      return lines.join("\n");
+    }
+
+    function lineKey(s){
+      return norm(s).replace(/[^A-Z0-9<]/g, "");
+    }
+
+    function lineReadabilityScore(line){
+      const n = norm(line);
+      if (!n) return 0;
+      const len = n.length;
+      const alnum = (n.match(/[A-Z0-9]/g) || []).length;
+      const spaces = (String(line).match(/\s/g) || []).length;
+      const noise = (String(line).match(/[^A-Za-z0-9<>\s\/\-\.,:]/g) || []).length;
+      const ratio = alnum / Math.max(1, len);
+      const spacePenalty = Math.min(0.15, spaces / Math.max(40, String(line).length));
+      const noisePenalty = Math.min(0.35, noise / Math.max(1, String(line).length));
+      return Math.max(0, Math.min(1, ratio - spacePenalty - noisePenalty));
+    }
+
+    function mergeTextsByConsensus(entries){
+      const map = new Map();
+      for (const e of entries){
+        const confN = Math.max(0, Math.min(1, Number(e?.conf || 0) / 100));
+        const tagBoost = e?.tag === "mrz" ? 0.08 : 0;
+        const lines = String(e?.text || "").split(/\r?\n/g).map((x) => x.trim()).filter(Boolean);
+        for (const ln of lines){
+          const k = lineKey(ln);
+          if (!k || k.length < 3) continue;
+          const score = (lineReadabilityScore(ln) * 0.65) + (confN * 0.35) + tagBoost;
+          const prev = map.get(k);
+          if (!prev || score > prev.score){
+            map.set(k, { line: ln, score, key: k });
+          }
+        }
+      }
+      const sorted = Array.from(map.values())
+        .sort((a, b) => b.score - a.score)
+        .map((x) => x.line);
+      return mergeTexts([sorted.join("\n")]);
+    }
+
+    function tokenizeConsensus(text){
+      return norm(text)
+        .replace(/[<]{2,}/g, " << ")
+        .split(/[^A-Z0-9<]+/g)
+        .map((x) => x.trim())
+        .filter((x) => x.length >= 2);
+    }
+
+    function buildTokenConsensus(entries){
+      const votes = new Map();
+      for (const e of entries){
+        const confN = Math.max(0, Math.min(1, Number(e?.conf || 0) / 100));
+        const w = 0.5 + (confN * 0.5) + (e?.tag === "mrz" ? 0.12 : 0);
+        for (const tk of tokenizeConsensus(e?.text || "")){
+          votes.set(tk, (votes.get(tk) || 0) + w);
+        }
+      }
+      const keep = Array.from(votes.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 140)
+        .map((x) => x[0]);
+      return keep.join(" ");
+    }
+
+    function cleanMrzLine(s){
+      return norm(s)
+        .replace(/\s+/g, "")
+        .replace(/[^A-Z0-9<]/g, "")
+        .replace(/K/g, "<")
+        .replace(/\*+/g, "<");
+    }
+
+    function parseMRZ(text){
+      const out = {};
+      const lines = String(text || "").split(/\r?\n/g).map(cleanMrzLine).filter((x) => x.length >= 12);
+      const mrz = lines.filter((l) => l.includes("<") && l.length >= 20);
+      if (!mrz.length) return out;
+
+      const nameLine = [...mrz].reverse().find((l) => l.includes("<<")) || "";
+      const numLine = mrz.find((l) => /\d{6}[MF<]\d{6}/.test(l)) || "";
+      const docLine = mrz.find((l) => /^(I|P|A|C)/.test(l)) || mrz[0] || "";
+
+      const docFromLine1 = extractDocFromMrzLine1(docLine);
+      if (docFromLine1) out["Nº Documento"] = docFromLine1;
+      else if (docLine.length >= 15){
+        const doc = normalizeSpanishDoc(docLine.slice(5, 15).replace(/</g, "").trim());
+        if (doc.length >= 7) out["Nº Documento"] = doc;
+      }
+      if (numLine.length >= 18){
+        const dob = dateYYMMDDToDDMMYYYY(numLine.slice(0, 6));
+        if (dob) out["Fecha de nacimiento"] = dob;
+        const sex = numLine[7];
+        if (sex === "M") out["Sexo"] = "MASCULINO";
+        if (sex === "F") out["Sexo"] = "FEMENINO";
+        const nat = numLine.slice(15, 18).replace(/</g, "");
+        if (nat) out["Nacionalidad"] = nat === "ESP" ? "ESPAÑOLA" : nat;
+      }
+      if (nameLine.includes("<<")){
+        const [surn, ...rest] = nameLine.split("<<");
+        const ap = surn.replace(/<+/g, " ").trim();
+        const nom = rest.join(" ").replace(/<+/g, " ").trim();
+        if (ap.length > 1) out["Apellidos"] = ap;
+        if (nom.length > 1) out["Nombre"] = nom;
+      }
+
+      return out;
+    }
+
+    const DNI_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE";
+
+    function stripNameNoise(s){
+      return norm(s)
+        .replace(/<+/g, " ")
+        .replace(/\b([A-Z])\b/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function normalizeDocToken(s){
+      return norm(s)
+        .replace(/[^A-Z0-9]/g, "")
+        .replace(/[OQD]/g, "0")
+        .replace(/[IL]/g, "1")
+        .replace(/Z/g, "2")
+        .replace(/S/g, "5")
+        .replace(/B/g, "8")
+        .replace(/G/g, "6");
+    }
+
+    function dniLetter(num8){
+      const n = Number(num8);
+      if (!Number.isFinite(n)) return "";
+      return DNI_LETTERS[n % 23];
+    }
+
+    function normalizeSpanishDoc(doc){
+      let d = normalizeDocToken(doc);
+      if (!d) return "";
+
+      if (/^\d{8}[A-Z0-9]$/.test(d)){
+        const n = d.slice(0, 8);
+        const L = dniLetter(n);
+        return n + L;
+      }
+
+      if (/^[XYZ]\d{7}[A-Z0-9]$/.test(d)){
+        const map = { X: "0", Y: "1", Z: "2" };
+        const body = map[d[0]] + d.slice(1, 8);
+        const L = dniLetter(body);
+        return d[0] + d.slice(1, 8) + L;
+      }
+
+      return d;
+    }
+
+    function isValidSpanishDoc(doc){
+      const d = normalizeSpanishDoc(doc);
+      if (/^\d{8}[A-Z]$/.test(d)){
+        return d[8] === dniLetter(d.slice(0, 8));
+      }
+      if (/^[XYZ]\d{7}[A-Z]$/.test(d)){
+        const map = { X: "0", Y: "1", Z: "2" };
+        const body = map[d[0]] + d.slice(1, 8);
+        return d[8] === dniLetter(body);
+      }
+      return false;
+    }
+
+    function extractDocFromMrzLine1(line){
+      let s = normalizeMrzForScoring(line)
+        .replace(/^1DESP/, "IDESP")
+        .replace(/^I<ESP/, "IDESP");
+      const cut = s.indexOf("<<");
+      if (cut > 0) s = s.slice(0, cut);
+      s = s.replace(/^IDESP/, "");
+      if (!s) return "";
+
+      const candidates = [];
+      for (let i = 0; i <= s.length - 9; i++){
+        const win = s.slice(i, i + 9);
+        const n = normalizeSpanishDoc(win);
+        if (/^\d{8}[A-Z]$/.test(n) || /^[XYZ]\d{7}[A-Z]$/.test(n)){
+          candidates.push({ n, valid: isValidSpanishDoc(n), pos: i });
+        }
+      }
+      if (!candidates.length) return "";
+      candidates.sort((a, b) => {
+        if (a.valid !== b.valid) return a.valid ? -1 : 1;
+        return b.pos - a.pos;
+      });
+      return candidates[0].n;
+    }
+
+    function sexNormalize(v){
+      const s = norm(v);
+      if (!s) return "";
+      if (["M", "MASCULINO", "HOMBRE", "VARON"].includes(s)) return "MASCULINO";
+      if (["F", "FEMENINO", "MUJER"].includes(s)) return "FEMENINO";
+      return s;
+    }
+
+    function dateYYMMDDToDDMMYYYY(v){
+      const s = String(v || "").replace(/[^0-9]/g, "");
+      if (!/^\d{6}$/.test(s)) return "";
+      const yy = Number(s.slice(0, 2));
+      const mm = Number(s.slice(2, 4));
+      const dd = Number(s.slice(4, 6));
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return "";
+      const nowYY = new Date().getFullYear() % 100;
+      const yyyy = yy > nowYY ? (1900 + yy) : (2000 + yy);
+      const d = String(dd).padStart(2, "0");
+      const m = String(mm).padStart(2, "0");
+      return `${d}/${m}/${yyyy}`;
+    }
+
+    function bestLexiconMatch(field, value, lexicon){
+      const vals = Object.keys(lexicon?.[field] || {});
+      const src = norm(value);
+      if (!src || !vals.length) return "";
+      let best = "";
+      let bestScore = 0;
+      for (const cand of vals){
+        const sc = sim(src, cand);
+        if (sc > bestScore){
+          bestScore = sc;
+          best = cand;
+        }
+      }
+      const th = field === "Nº Documento" ? 0.62 : (field === "Nombre" || field === "Apellidos" ? 0.74 : 0.78);
+      return bestScore >= th ? best : "";
+    }
+
+    function parseWithLexicon(text, lexicon){
+      const out = {};
+      const raw = norm(text);
+      const lines = String(text || "").split(/\r?\n/g).map((x) => norm(x)).filter(Boolean);
+      for (const f of FIELDS){
+        const vals = Object.keys(lexicon?.[f] || {});
+        if (!vals.length) continue;
+        let best = "";
+        let bestScore = 0;
+        for (const v of vals){
+          let sc = raw.includes(v) ? 1 : 0;
+          for (const ln of lines){
+            const s = sim(ln, v);
+            if (s > sc) sc = s;
+          }
+          if (sc > bestScore){
+            bestScore = sc;
+            best = v;
+          }
+        }
+        const th = f === "Nº Documento" ? 0.66 : (f === "Nombre" || f === "Apellidos" ? 0.76 : 0.82);
+        if (best && bestScore >= th) out[f] = best;
+      }
+      return out;
+    }
+
+    function mrzCandidateLines(text){
+      return String(text || "")
+        .split(/\r?\n/g)
+        .map((x) => x.trim())
+        .filter((x) => x.length >= 16 && (x.includes("<") || /[A-Z0-9]{10,}/.test(norm(x))));
+    }
+
+    function normalizeMrzForScoring(line){
+      return norm(line)
+        .replace(/\s+/g, "")
+        .replace(/[^A-Z0-9<]/g, "")
+        .replace(/«|»/g, "<");
+    }
+
+    function mrzVariants(line){
+      const base = normalizeMrzForScoring(line);
+      const vars = new Set([base]);
+      const one = [
+        [/O/g, "0"], [/Q/g, "0"], [/D/g, "0"],
+        [/I/g, "1"], [/L/g, "1"], [/Z/g, "2"],
+        [/S/g, "5"], [/G/g, "6"], [/B/g, "8"],
+        [/K/g, "<"], [/\*/g, "<"]
+      ];
+      for (const [re, to] of one) vars.add(base.replace(re, to));
+      const arr = Array.from(vars);
+      for (const v of arr){
+        vars.add(v.replace(/O/g, "0").replace(/I/g, "1").replace(/B/g, "8").replace(/S/g, "5").replace(/K/g, "<"));
+      }
+      return Array.from(vars);
+    }
+
+    function textCoverageScore(text, truth){
+      const raw = norm(text);
+      const lines = String(text || "").split(/\r?\n/g).map((x) => x.trim()).filter(Boolean);
+      const keys = ["Nombre", "Apellidos", "Nº Documento", "Fecha de nacimiento", "Sexo", "Nacionalidad"];
+      const w = { "Nombre": 1.2, "Apellidos": 1.3, "Nº Documento": 2.0, "Fecha de nacimiento": 1.1, "Sexo": 0.8, "Nacionalidad": 0.8 };
+      let num = 0;
+      let den = 0;
+      for (const k of keys){
+        const t = String(truth?.[k] || "").trim();
+        if (!t) continue;
+        const nt = norm(t);
+        const contains = nt && raw.includes(nt) ? 1 : 0;
+        let best = contains;
+        for (const ln of lines){
+          const s = sim(ln, t);
+          if (s > best) best = s;
+        }
+        num += best * (w[k] || 1);
+        den += (w[k] || 1);
+      }
+      return den ? (num / den) : 0;
+    }
+
+    function tuneTextWithTruth(text, truth){
+      const lines = String(text || "").split(/\r?\n/g).map((x) => x.trim()).filter(Boolean);
+      if (!lines.length) return String(text || "");
+
+      const tuned = [];
+      for (const ln of lines){
+        if (!(ln.includes("<") || ln.length >= 20)) {
+          tuned.push(ln);
+          continue;
+        }
+        const vars = mrzVariants(ln);
+        let best = vars[0] || ln;
+        let bestScore = -1;
+        for (const v of vars){
+          const s = textCoverageScore(v, truth);
+          if (s > bestScore){
+            bestScore = s;
+            best = v;
+          }
+        }
+        tuned.push(best);
+      }
+      return mergeTexts([text, tuned.join("\n")]);
+    }
+
+    function findBestLine(lines, target){
+      let best = "";
+      let bestScore = 0;
+      for (const ln of lines){
+        const sc = sim(ln, target);
+        if (sc > bestScore){
+          bestScore = sc;
+          best = ln;
+        }
+      }
+      return { best, bestScore };
+    }
+
+    function parseByLabels(text){
+      const out = {};
+      const up = norm(text);
+      const raw = String(text || "");
+
+      const labelRules = [
+        { f: "Nombre", r: /NOMBRE\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ' ]{2,})/ },
+        { f: "Apellidos", r: /APELLIDOS?\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ' ]{2,})/ },
+        { f: "Nº Documento", r: /(?:NUMERO|N[Oº]?\.?\s*DOCUMENTO|DOCUMENTO)\s*[:\-]?\s*([A-Z0-9]{6,15})/ },
+        { f: "Fecha de nacimiento", r: /FECHA\s*DE\s*NACIMIENTO\s*[:\-]?\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})/ },
+        { f: "Lugar de nacimiento", r: /LUGAR\s*DE\s*NACIMIENTO\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ' \/-]{3,})/ },
+        { f: "Nacionalidad", r: /NACIONALIDAD\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ ]{3,})/ },
+        { f: "Sexo", r: /\b(SEXO|SEX)\s*[:\-]?\s*(MASCULINO|FEMENINO|HOMBRE|MUJER|M|F)\b/ }
+      ];
+
+      for (const rule of labelRules){
+        const m = up.match(rule.r);
+        if (m){
+          out[rule.f] = (m[2] || m[1] || "").trim();
+        }
+      }
+
+      if (!out["Nº Documento"]){
+        const m = up.match(/\b([XYZ]?\d{7,8}[A-Z]|\d{8}[A-Z]|[A-Z]{1,3}\d{5,10})\b/);
+        if (m) out["Nº Documento"] = m[1];
+      }
+
+      if (!out["Fecha de nacimiento"]){
+        const m = raw.match(/\b(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\b/);
+        if (m) out["Fecha de nacimiento"] = m[1];
+      }
+
+      if (!out["Tipo de documento"]){
+        const m = up.match(/\b(DNI|NIE|PASAPORTE|DOCUMENTO NACIONAL DE IDENTIDAD)\b/);
+        if (m) out["Tipo de documento"] = m[1].includes("DOCUMENTO") ? "DNI" : m[1];
+      }
+
+      if (out["Sexo"]){
+        const s = norm(out["Sexo"]);
+        if (s === "M") out["Sexo"] = "MASCULINO";
+        if (s === "F") out["Sexo"] = "FEMENINO";
+        if (s === "HOMBRE") out["Sexo"] = "MASCULINO";
+        if (s === "MUJER") out["Sexo"] = "FEMENINO";
+      }
+
+      return out;
+    }
+
+    function parseWithHints(text, hints){
+      const out = {};
+      const lines = String(text || "").split(/\r?\n/g).map((x) => x.trim()).filter(Boolean);
+      for (const f of FIELDS){
+        if (!Array.isArray(hints?.[f]) || !hints[f].length) continue;
+        let bestVal = "";
+        let bestSc = 0;
+        for (const ln of lines){
+          const n = norm(ln);
+          let h = 0;
+          for (const tok of hints[f]){
+            if (n.includes(tok)) h++;
+          }
+          const sc = h / hints[f].length;
+          if (sc > bestSc){
+            bestSc = sc;
+            bestVal = ln;
+          }
+        }
+        if (bestSc > 0.35) out[f] = bestVal;
+      }
+      return out;
+    }
+
+    function parseText(text, parseCfg, model){
+      const parts = [];
+
+      if (parseCfg.useMRZ) parts.push(parseMRZ(text));
+      if (parseCfg.useLabels) parts.push(parseByLabels(text));
+      if (parseCfg.useHints) parts.push(parseWithHints(text, model?.parse_hints || {}));
+      parts.push(parseWithLexicon(text, model?.lexicon || {}));
+
+      const merged = {};
+      for (const obj of parts){
+        for (const [k, v] of Object.entries(obj)){
+          if (!merged[k] && String(v || "").trim()) merged[k] = String(v).trim();
+        }
+      }
+
+      if (!merged["Nombre"] || !merged["Apellidos"]){
+        const mrz = parseMRZ(text);
+        if (!merged["Nombre"] && mrz["Nombre"]) merged["Nombre"] = mrz["Nombre"];
+        if (!merged["Apellidos"] && mrz["Apellidos"]) merged["Apellidos"] = mrz["Apellidos"];
+      }
+
+      // Post-corrección de parseo
+      if (merged["Nombre"]) merged["Nombre"] = stripNameNoise(merged["Nombre"]);
+      if (merged["Apellidos"]) merged["Apellidos"] = stripNameNoise(merged["Apellidos"]);
+      if (merged["Sexo"]) merged["Sexo"] = sexNormalize(merged["Sexo"]);
+
+      if (merged["Nº Documento"]){
+        merged["Nº Documento"] = normalizeSpanishDoc(merged["Nº Documento"]);
+      }
+
+      if (merged["Nº Documento"] && !merged["Tipo de documento"]){
+        const d = merged["Nº Documento"];
+        if (/^\d{8}[A-Z]$/.test(d)) merged["Tipo de documento"] = "DNI";
+        if (/^[XYZ]\d{7}[A-Z]$/.test(d)) merged["Tipo de documento"] = "NIE";
+      }
+
+      if (!merged["Fecha de nacimiento"]){
+        const mrz = parseMRZ(text);
+        const lines = String(text || "").split(/\r?\n/g).map(cleanMrzLine).filter(Boolean);
+        const line2 = lines.find((l) => /\d{6}[MF<]\d{6}/.test(l)) || "";
+        if (line2.length >= 6){
+          const dt = dateYYMMDDToDDMMYYYY(line2.slice(0, 6));
+          if (dt) merged["Fecha de nacimiento"] = dt;
+        } else if (mrz["Fecha de nacimiento"]) {
+          merged["Fecha de nacimiento"] = mrz["Fecha de nacimiento"];
+        }
+      }
+
+      // Ajuste final con léxico aprendido
+      for (const f of ["Nombre", "Apellidos", "Nº Documento", "Sexo", "Nacionalidad", "Tipo de documento", "Lugar de nacimiento"]){
+        if (!merged[f]) continue;
+        const m = bestLexiconMatch(f, merged[f], model?.lexicon || {});
+        if (m) merged[f] = m;
+      }
+
+      return merged;
+    }
+
+    function canonicalFieldValue(field, value){
+      const v = norm(value);
+      if (!v) return "";
+      if (field === "Sexo"){
+        if (["M", "MASCULINO", "HOMBRE", "VARON"].includes(v)) return "MASCULINO";
+        if (["F", "FEMENINO", "MUJER"].includes(v)) return "FEMENINO";
+      }
+      if (field === "Nacionalidad"){
+        if (v === "ESP" || v === "ESPANOLA" || v === "ESPAÑOLA") return "ESP";
+      }
+      if (field === "Tipo de documento"){
+        if (v.includes("DNI")) return "DNI";
+        if (v.includes("NIE")) return "NIE";
+        if (v.includes("PASAPORTE")) return "PASAPORTE";
+      }
+      if (field === "Nº Documento"){
+        return normalizeSpanishDoc(v);
+      }
+      if (field === "Fecha de nacimiento"){
+        const ds = String(value || "").replace(/[.\-]/g, "/");
+        const m = ds.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+        if (m){
+          const d = String(Number(m[1])).padStart(2, "0");
+          const mn = String(Number(m[2])).padStart(2, "0");
+          let y = String(Number(m[3]));
+          if (y.length === 2){
+            const yy = Number(y);
+            const nowYY = new Date().getFullYear() % 100;
+            y = String(yy > nowYY ? (1900 + yy) : (2000 + yy));
+          }
+          return `${d}/${mn}/${y}`;
+        }
+      }
+      return v;
+    }
+
+    function matchAgainstTruth(pred, truth){
+      const fields = [];
+      let total = 0;
+      let hit = 0;
+      for (const f of FIELDS){
+        const tRaw = String(truth?.[f] || "").trim();
+        if (!tRaw) continue;
+        total++;
+        const pRaw = String(pred?.[f] || "").trim();
+        const t = canonicalFieldValue(f, tRaw);
+        const p = canonicalFieldValue(f, pRaw);
+        const ok = !!t && !!p && t === p;
+        if (ok) hit++;
+        fields.push({ field: f, ok, truth: tRaw, parsed: pRaw });
+      }
+      return {
+        total,
+        hit,
+        ratio: total ? (hit / total) : 0,
+        allMatched: total > 0 && hit === total,
+        fields
+      };
+    }
+
+    function evaluate(pred, truth, ocrText, conf){
+      let pNum = 0;
+      let pDen = 0;
+      for (const f of FIELDS){
+        const t = String(truth[f] || "").trim();
+        if (!t) continue;
+        const p = String(pred[f] || "").trim();
+        const w = FIELD_WEIGHT[f] || 0.5;
+        const s = sim(p, t);
+        pNum += s * w;
+        pDen += w;
+      }
+      const parseFit = pDen ? (pNum / pDen) : 0;
+      const ocrFit = textCoverageScore(ocrText, truth);
+      const nConf = Math.max(0, Math.min(1, Number(conf || 0) / 100));
+      const txtScore = Math.max(0, Math.min(1, norm(ocrText).length / 700));
+      const score = (ocrFit * 0.78) + (parseFit * 0.14) + (nConf * 0.05) + (txtScore * 0.03);
+      return { score, parseFit, ocrFit, nConf, txtScore };
+    }
+
+    function refreshKpi(){
+      EL.kTries.textContent = String(S.tries || 0);
+      EL.kRuns.textContent = String(S.ocrRuns || 0);
+      EL.kScore.textContent = S.best ? S.best.score.toFixed(3) : "0.000";
+      EL.kConf.textContent = S.best ? (S.best.conf || 0).toFixed(1) : "0.0";
+      EL.kElapsed.textContent = `${(S.elapsed || 0).toFixed(1)}s`;
+      EL.kModel.textContent = String(S.model.version || 0);
+      EL.kSamples.textContent = String((S.samples || []).length);
+    }
+
+    function computeHints(samples){
+      const bag = {};
+      for (const f of FIELDS) bag[f] = {};
+
+      for (const s of samples){
+        const truth = s.truth || {};
+        const lines = String(s.best_text || "").split(/\r?\n/g).map((x) => x.trim()).filter(Boolean);
+
+        for (const f of FIELDS){
+          const tgt = String(truth[f] || "").trim();
+          if (!tgt) continue;
+          const hit = findBestLine(lines, tgt);
+          if (!hit.best) continue;
+          for (const tok of tokenize(hit.best)){
+            if (tok.length < 3) continue;
+            bag[f][tok] = (bag[f][tok] || 0) + 1;
+          }
+        }
+      }
+
+      const out = {};
+      for (const f of FIELDS){
+        out[f] = Object.entries(bag[f]).sort((a, b) => b[1] - a[1]).slice(0, 25).map((x) => x[0]);
+      }
+      return out;
+    }
+
+    function updateLexiconFromSample(sample){
+      const lx = S.model.lexicon || {};
+      for (const f of FIELDS){
+        lx[f] = lx[f] || {};
+        const val = norm(sample.truth?.[f] || "");
+        if (!val) continue;
+        lx[f][val] = (lx[f][val] || 0) + 1;
+      }
+      S.model.lexicon = lx;
+    }
+
+    function packForExport(){
+      return {
+        type: "compa_ocr_pack",
+        version: S.model.version || 0,
+        exported_at: new Date().toISOString(),
+        runtime: {
+          strategy: "seed+mutate+multicrop+multiparse",
+          budget_ms_default: 300000,
+          top_profiles: (S.model.profiles || []).slice(0, 20),
+          parse_hints: S.model.parse_hints || {},
+          lexicon: S.model.lexicon || {}
+        },
+        trainer: {
+          samples_count: (S.samples || []).length,
+          stats: S.model.stats || {}
+        }
+      };
+    }
+
+    function refreshPackOut(){
+      EL.configOut.value = JSON.stringify(packForExport(), null, 2);
+    }
+
+    function choice(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function seedOCRConfigs(){
+      const seeds = [];
+      const baseScales = [1.8, 2.2, 2.6, 3.0, 3.4];
+      const psms = [4, 6, 7, 11, 13];
+      const rots = [-5, -3, -2, -1, 0, 1, 2, 3, 5];
+      const crops = [
+        null,
+        { rx: 0.00, ry: 0.55, rw: 1.00, rh: 0.43 },
+        { rx: 0.02, ry: 0.58, rw: 0.96, rh: 0.36 },
+        { rx: 0.00, ry: 0.00, rw: 1.00, rh: 0.62 },
+        { rx: 0.00, ry: 0.15, rw: 1.00, rh: 0.75 }
+      ];
+
+      for (const scale of baseScales){
+        for (const psm of psms){
+          seeds.push({
+            scale,
+            crop: null,
+            rotate: 0,
+            autocontrast: true,
+            gamma: 0.92,
+            median: false,
+            sharpen: 0.9,
+            binarize: false,
+            thrMode: "otsu",
+            thrDelta: 0,
+            thr: 145,
+            invert: false,
+            psm,
+            whitelist: ""
+          });
+        }
+      }
+
+      for (const rot of rots){
+        seeds.push({
+          scale: 3.0,
+          crop: { rx: 0.02, ry: 0.58, rw: 0.96, rh: 0.36 },
+          rotate: rot,
+          autocontrast: true,
+          gamma: 0.88,
+          median: false,
+          sharpen: 1.25,
+          binarize: true,
+          thrMode: "otsu",
+          thrDelta: 0,
+          thr: 145,
+          invert: false,
+          psm: choice([6, 7]),
+          whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+        });
+      }
+
+      for (const crop of crops){
+        seeds.push({
+          scale: choice([2.4, 2.8, 3.2]),
+          crop,
+          rotate: 0,
+          autocontrast: true,
+          gamma: choice([0.78, 0.88, 0.98, 1.08]),
+          median: choice([false, true]),
+          sharpen: choice([0.4, 0.8, 1.2, 1.4]),
+          binarize: true,
+          thrMode: "otsu",
+          thrDelta: choice([-32, -24, -16, -8, 0, 8, 16, 24, 32]),
+          thr: choice([120, 135, 145, 160, 175]),
+          invert: choice([false, false, true]),
+          psm: choice(psms),
+          whitelist: ""
+        });
+      }
+
+      return seeds;
+    }
+
+    function mutateOCRConfig(cfg){
+      const out = JSON.parse(JSON.stringify(cfg));
+      const ops = ["scale", "rotate", "gamma", "sharpen", "thr", "thrDelta", "invert", "binarize", "psm", "crop", "median", "deglare", "localBoost"];
+      const count = 1 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < count; i++){
+        const op = choice(ops);
+        if (op === "scale") out.scale = Math.max(1.2, Math.min(4.2, Number(out.scale || 2.2) + choice([-0.45, -0.3, -0.2, 0.2, 0.3, 0.45])));
+        if (op === "rotate") out.rotate = Math.max(-8, Math.min(8, Number(out.rotate || 0) + choice([-3, -2, -1, 1, 2, 3])));
+        if (op === "gamma") out.gamma = Math.max(0.5, Math.min(1.4, Number(out.gamma || 1) + choice([-0.18, -0.12, -0.08, 0.08, 0.12, 0.18])));
+        if (op === "sharpen") out.sharpen = Math.max(0, Math.min(1.8, Number(out.sharpen || 0.8) + choice([-0.5, -0.3, -0.2, 0.2, 0.3, 0.5])));
+        if (op === "thr") out.thr = Math.max(70, Math.min(230, Number(out.thr || 145) + choice([-40, -30, -20, -10, 10, 20, 30, 40])));
+        if (op === "thrDelta") out.thrDelta = Math.max(-56, Math.min(56, Number(out.thrDelta || 0) + choice([-20, -14, -8, -4, 4, 8, 14, 20])));
+        if (op === "invert") out.invert = !out.invert;
+        if (op === "binarize") out.binarize = !out.binarize;
+        if (op === "median") out.median = !out.median;
+        if (op === "deglare") out.deglare = !out.deglare;
+        if (op === "localBoost") out.localBoost = Math.max(0, Math.min(0.9, Number(out.localBoost || 0) + choice([-0.25, -0.12, 0.12, 0.25])));
+        if (op === "psm") out.psm = choice([4, 6, 7, 11, 13]);
+        if (op === "crop"){
+          if (!out.crop){
+            out.crop = { rx: 0.02, ry: 0.58, rw: 0.96, rh: 0.36 };
+          } else {
+            out.crop.rx = Math.max(0, Math.min(0.2, out.crop.rx + choice([-0.02, -0.01, 0.01, 0.02])));
+            out.crop.ry = Math.max(0, Math.min(0.9, out.crop.ry + choice([-0.03, -0.02, 0.02, 0.03])));
+            out.crop.rw = Math.max(0.45, Math.min(1.0, out.crop.rw + choice([-0.05, -0.02, 0.02, 0.05])));
+            out.crop.rh = Math.max(0.2, Math.min(0.85, out.crop.rh + choice([-0.05, -0.02, 0.02, 0.05])));
+          }
+        }
+      }
+
+      if (Math.random() < 0.35){
+        out.whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<";
+      } else if (Math.random() < 0.2){
+        out.whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<-/ ";
+      } else {
+        out.whitelist = "";
+      }
+
+      return out;
+    }
+
+    function seedParseConfigs(){
+      return [
+        { useMRZ: true, useLabels: true, useHints: true },
+        { useMRZ: true, useLabels: true, useHints: false },
+        { useMRZ: true, useLabels: false, useHints: true },
+        { useMRZ: true, useLabels: false, useHints: false },
+        { useMRZ: false, useLabels: true, useHints: true },
+        { useMRZ: false, useLabels: true, useHints: false }
+      ];
+    }
+
+    function historicalSeedConfigs(model){
+      const profs = Array.isArray(model?.profiles) ? model.profiles : [];
+      const top = profs
+        .filter((p) => Number(p?.score || 0) >= 0.45)
+        .slice(0, 30);
+      const ocr = top.map((p) => p?.ocr_cfg).filter(Boolean);
+      const parse = top.map((p) => p?.parse_cfg).filter(Boolean);
+      return { ocr, parse };
+    }
+
+    function buildOcrEnsembleConfigs(base){
+      const out = [];
+      out.push({ ...base });
+      out.push({
+        ...base,
+        psm: 11,
+        scale: Math.max(2.2, Number(base.scale || 2.4) + 0.35),
+        gamma: 0.86,
+        sharpen: 1.2,
+        binarize: true,
+        thrMode: "otsu",
+        thrDelta: -8,
+        whitelist: ""
+      });
+      out.push({
+        ...base,
+        psm: 6,
+        scale: Math.max(2.8, Number(base.scale || 2.4) + 0.4),
+        gamma: 0.76,
+        deglare: true,
+        localBoost: 0.55,
+        median: true,
+        sharpen: 1.55,
+        binarize: true,
+        thrMode: "otsu",
+        thrDelta: -16,
+        whitelist: ""
+      });
+      out.push({
+        ...base,
+        psm: 11,
+        scale: Math.max(3.0, Number(base.scale || 2.4) + 0.5),
+        deglare: true,
+        localBoost: 0.35,
+        gamma: 0.9,
+        median: false,
+        sharpen: 1.45,
+        binarize: true,
+        thrMode: "otsu",
+        thrDelta: 18,
+        invert: false,
+        whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+      });
+      out.push({
+        ...base,
+        psm: 6,
+        crop: base.crop || { rx: 0.01, ry: 0.56, rw: 0.98, rh: 0.40 },
+        scale: Math.max(2.6, Number(base.scale || 2.4) + 0.2),
+        gamma: 0.84,
+        sharpen: 1.3,
+        binarize: true,
+        thrMode: "otsu",
+        thrDelta: 0,
+        whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+      });
+      out.push({
+        ...base,
+        psm: 7,
+        crop: base.crop || { rx: 0.00, ry: 0.52, rw: 1.00, rh: 0.46 },
+        scale: Math.max(2.8, Number(base.scale || 2.4) + 0.3),
+        gamma: 0.80,
+        sharpen: 1.4,
+        median: false,
+        binarize: true,
+        thrMode: "otsu",
+        thrDelta: 10,
+        whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
+      });
+      out.push({
+        ...base,
+        psm: 6,
+        rotate: Number(base.rotate || 0) + (Math.random() < 0.5 ? -1 : 1),
+        scale: Math.max(2.4, Number(base.scale || 2.4)),
+        gamma: 1.05,
+        sharpen: 0.8,
+        binarize: false,
+        whitelist: ""
+      });
+      return out;
+    }
+
+    async function evaluateConfig(img, ocrCfg, parseCfg, truth){
+      const passCfgs = buildOcrEnsembleConfigs(ocrCfg);
+      const passOut = [];
+      for (const cfg of passCfgs){
+        const canv = preprocess(img, cfg);
+        const res = await runTesseract(canv, cfg);
+        S.ocrRuns++;
+        passOut.push({
+          text: res.text,
+          conf: res.conf,
+          tag: cfg.whitelist ? "mrz" : "full"
+        });
+      }
+
+      const lineConsensus = mergeTextsByConsensus(passOut);
+      const tokenConsensus = buildTokenConsensus(passOut);
+      const mergedText = mergeTexts([lineConsensus, tokenConsensus]);
+      const mergedConf = passOut.reduce((a, x) => a + Number(x.conf || 0), 0) / Math.max(1, passOut.length);
+
+      const tunedText = tuneTextWithTruth(mergedText, truth);
+      const pred = parseText(tunedText, parseCfg, S.model);
+      const ev = evaluate(pred, truth, tunedText, mergedConf);
+      const match = matchAgainstTruth(pred, truth);
+
+      return {
+        score: ev.score,
+        metrics: ev,
+        match,
+        conf: mergedConf,
+        text: tunedText,
+        parsed: pred,
+        ocrCfg,
+        parseCfg
+      };
+    }
+
+    async function runQuick(){
+      if (!S.dataUrl){ setStatus("Sube una imagen"); return; }
+      EL.btnQuick.disabled = true;
+      setStatus("OCR rápido...");
+      try {
+        const img = await toImage(S.dataUrl);
+        const ocrCfg = {
+          scale: 2.6,
+          crop: null,
+          rotate: 0,
+          autocontrast: true,
+          gamma: 0.9,
+          median: false,
+          sharpen: 1.0,
+          binarize: false,
+          thrMode: "otsu",
+          thrDelta: 0,
+          thr: 145,
+          invert: false,
+          psm: 6,
+          whitelist: ""
+        };
+        const parseCfg = { useMRZ: true, useLabels: true, useHints: true };
+        const res = await evaluateConfig(img, ocrCfg, parseCfg, getTruth());
+        EL.ocrBest.value = res.text;
+        EL.parseBest.value = JSON.stringify(res.parsed, null, 2);
+        setStatus("OCR rápido OK");
+      } catch (e){
+        setStatus("Error OCR rápido: " + String(e?.message || e));
+      } finally {
+        EL.btnQuick.disabled = false;
+      }
+      refreshKpi();
+    }
+
+    async function runAuto(){
+      if (!S.dataUrl){ setStatus("Sube una imagen"); return; }
+      if (S.running) return;
+
+      const truth = getTruth();
+      const budgetMs = Math.max(30000, Math.min(1200000, Number(EL.budgetSec.value || 300) * 1000));
+
+      S.running = true;
+      S.stop = false;
+      S.tries = 0;
+      S.ocrRuns = 0;
+      S.best = null;
+      S.elapsed = 0;
+      refreshKpi();
+
+      EL.btnAuto.disabled = true;
+      EL.btnStop.disabled = false;
+      setStatus("Autoentrenando...");
+
+      const img = await toImage(S.dataUrl);
+      const hist = historicalSeedConfigs(S.model);
+      const seedOCR = [...hist.ocr, ...seedOCRConfigs()];
+      const seedParse = [...hist.parse, ...seedParseConfigs()];
+      const elites = [];
+
+      const t0 = performance.now();
+      const targetTries = 1000;
+      let solved = false;
+
+      try {
+        let ptr = 0;
+        const maxSeedCombos = Math.min(220, seedOCR.length * seedParse.length);
+        while (!S.stop && (performance.now() - t0) < budgetMs){
+          const phaseSeed = ptr < maxSeedCombos;
+          let ocrCfg;
+          let parseCfg;
+
+          if (phaseSeed){
+            ocrCfg = seedOCR[Math.floor(ptr / seedParse.length) % seedOCR.length];
+            parseCfg = seedParse[ptr % seedParse.length];
+          } else {
+            const progress = Math.max(0, Math.min(1, (performance.now() - t0) / budgetMs));
+            const exploit = Math.random() < (0.55 + (progress * 0.35));
+            const parentPool = elites.length ? elites.slice(0, Math.max(6, Math.floor(elites.length * 0.55))) : [];
+            const src = (exploit && parentPool.length)
+              ? choice(parentPool)
+              : { ocrCfg: choice(seedOCR), parseCfg: choice(seedParse) };
+            ocrCfg = mutateOCRConfig(src.ocrCfg);
+            parseCfg = choice([
+              src.parseCfg,
+              ...hist.parse.slice(0, 10),
+              ...seedParse,
+              { useMRZ: true, useLabels: true, useHints: true }
+            ]);
+          }
+
+          ptr++;
+
+          let cand;
+          try {
+            cand = await evaluateConfig(img, ocrCfg, parseCfg, truth);
+          } catch {
+            continue;
+          }
+
+          S.tries += 1;
+          S.elapsed = (performance.now() - t0) / 1000;
+
+          if (!S.best || cand.score > S.best.score){
+            S.best = {
+              ...cand,
+              at_try: S.tries,
+              at_sec: S.elapsed
+            };
+            EL.ocrBest.value = S.best.text;
+            EL.parseBest.value = JSON.stringify(S.best.parsed, null, 2);
+          }
+
+          if (cand.match?.allMatched){
+            S.best = {
+              ...cand,
+              at_try: S.tries,
+              at_sec: S.elapsed
+            };
+            EL.ocrBest.value = S.best.text;
+            EL.parseBest.value = JSON.stringify(S.best.parsed, null, 2);
+            solved = true;
+            setStatus(`Coincidencia total lograda en intento ${S.tries}`);
+            break;
+          }
+
+          elites.push(cand);
+          elites.sort((a, b) => b.score - a.score);
+          if (elites.length > 32) elites.length = 32;
+
+          if (S.tries % 2 === 0){
+            refreshKpi();
+            const percent = Math.max(0, Math.min(100, ((performance.now() - t0) / budgetMs) * 100));
+            const learnt = (S.model?.profiles || []).length;
+            const mr = cand?.match;
+            const mtxt = mr ? ` · match ${mr.hit}/${mr.total}` : "";
+            const tMsg = `Autoentrenando ${percent.toFixed(1)}% · intentos ${S.tries} · OCR runs ${S.ocrRuns} · memoria ${learnt}${mtxt}`;
+            setStatus(tMsg + (S.tries < targetTries ? "" : " · objetivo >=1000 superado"));
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+
+        if (!S.best){
+          setStatus("Sin resultado útil, prueba con mejor foto o más tiempo");
+          return;
+        }
+
+        const sample = {
+          ts: new Date().toISOString(),
+          truth,
+          best_score: S.best.score,
+          best_conf: S.best.conf,
+          best_text: S.best.text,
+          best_parsed: S.best.parsed,
+          best_ocr_cfg: S.best.ocrCfg,
+          best_parse_cfg: S.best.parseCfg,
+          tries: S.tries,
+          ocr_runs: S.ocrRuns,
+          elapsed_s: S.elapsed
+        };
+
+        S.samples.push(sample);
+        if (S.samples.length > 3000) S.samples = S.samples.slice(-3000);
+
+        S.model.version = (S.model.version || 0) + 1;
+        S.model.parse_hints = computeHints(S.samples);
+        updateLexiconFromSample(sample);
+
+        const topProfiles = [
+          {
+            created_at: sample.ts,
+            score: S.best.score,
+            conf: S.best.conf,
+            metrics: S.best.metrics || {},
+            ocr_cfg: S.best.ocrCfg,
+            parse_cfg: S.best.parseCfg,
+            preview: S.best.parsed
+          },
+          ...elites.slice(0, 12).map((x) => ({
+            created_at: sample.ts,
+            score: x.score,
+            conf: x.conf,
+            metrics: x.metrics || {},
+            ocr_cfg: x.ocrCfg,
+            parse_cfg: x.parseCfg,
+            preview: x.parsed
+          })),
+          ...(S.model.profiles || [])
+        ];
+        const seen = new Set();
+        S.model.profiles = topProfiles
+          .sort((a, b) => b.score - a.score)
+          .filter((p) => {
+            const key = JSON.stringify([p.ocr_cfg, p.parse_cfg, p.preview]);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .slice(0, 80);
+
+        S.model.stats = S.model.stats || { total_runs: 0, total_attempts: 0 };
+        S.model.stats.total_runs += 1;
+        S.model.stats.total_attempts += S.tries;
+
+        saveJSON(LS_SAMPLES, S.samples);
+        saveJSON(LS_MODEL, S.model);
+        refreshPackOut();
+        refreshKpi();
+
+        if (solved){
+          setStatus(`Finalizado con coincidencia total en ${S.elapsed.toFixed(1)}s (${S.tries} intentos / ${S.ocrRuns} OCR)`);
+        } else {
+          const mr = S.best?.match;
+          const mtxt = mr ? ` · mejor match ${mr.hit}/${mr.total}` : "";
+          setStatus(`Finalizado por tiempo. Mejor score ${S.best.score.toFixed(3)} en ${S.elapsed.toFixed(1)}s (${S.tries} intentos / ${S.ocrRuns} OCR)${mtxt}`);
+        }
+      } finally {
+        S.running = false;
+        EL.btnAuto.disabled = false;
+        EL.btnStop.disabled = true;
+      }
+    }
+
+    function saveManualSample(){
+      const truth = getTruth();
+      const txt = String(EL.ocrBest.value || "").trim();
+      if (!txt){ setStatus("No hay OCR para guardar"); return; }
+      let parsed = {};
+      try {
+        parsed = JSON.parse(EL.parseBest.value || "{}") || {};
+      } catch {
+        parsed = {};
+      }
+
+      const sample = {
+        ts: new Date().toISOString(),
+        truth,
+        best_score: S.best?.score || 0,
+        best_conf: S.best?.conf || 0,
+        best_text: txt,
+        best_parsed: parsed,
+        best_ocr_cfg: S.best?.ocrCfg || null,
+        best_parse_cfg: S.best?.parseCfg || null,
+        tries: S.tries || 0,
+        ocr_runs: S.ocrRuns || 0,
+        elapsed_s: S.elapsed || 0
+      };
+
+      S.samples.push(sample);
+      if (S.samples.length > 3000) S.samples = S.samples.slice(-3000);
+      S.model.parse_hints = computeHints(S.samples);
+      updateLexiconFromSample(sample);
+      saveJSON(LS_SAMPLES, S.samples);
+      saveJSON(LS_MODEL, S.model);
+      refreshKpi();
+      refreshPackOut();
+      setStatus("Muestra guardada");
+    }
+
+    function exportPack(){
+      const payload = {
+        ...packForExport(),
+        model: S.model,
+        samples: S.samples.slice(-200)
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "compa_ocr_pack.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 700);
+      setStatus("Pack exportado");
+    }
+
+    function importPack(file){
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          try {
+            const obj = JSON.parse(String(r.result || "{}"));
+            if (obj.model && typeof obj.model === "object") S.model = obj.model;
+            if (Array.isArray(obj.samples)) S.samples = obj.samples;
+            saveJSON(LS_MODEL, S.model);
+            saveJSON(LS_SAMPLES, S.samples);
+            refreshKpi();
+            refreshPackOut();
+            resolve();
+          } catch (e){
+            reject(e);
+          }
+        };
+        r.onerror = reject;
+        r.readAsText(file);
+      });
+    }
+
+    function applyPackToApp(){
+      const pack = packForExport();
+      localStorage.setItem(APP_PACK_KEY, JSON.stringify(pack));
+      setStatus(`Pack aplicado a localStorage: ${APP_PACK_KEY}`);
+    }
+
+    function resetAll(){
+      const ok = confirm("Borrar muestras y modelo locales?");
+      if (!ok) return;
+      S.samples = [];
+      S.model = {
+        version: 0,
+        profiles: [],
+        parse_hints: {},
+        lexicon: {},
+        stats: { total_runs: 0, total_attempts: 0 }
+      };
+      S.best = null;
+      S.tries = 0;
+      S.ocrRuns = 0;
+      S.elapsed = 0;
+      saveJSON(LS_SAMPLES, S.samples);
+      saveJSON(LS_MODEL, S.model);
+      EL.ocrBest.value = "";
+      EL.parseBest.value = "";
+      refreshKpi();
+      refreshPackOut();
+      setStatus("Reset local completado");
+    }
+
+    EL.file.addEventListener("change", () => {
+      const f = EL.file.files?.[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        S.dataUrl = String(r.result || "");
+        EL.preview.src = S.dataUrl;
+        EL.preview.style.display = "block";
+        setStatus("Imagen cargada");
+      };
+      r.readAsDataURL(f);
+    });
+
+    EL.btnQuick.addEventListener("click", runQuick);
+    EL.btnAuto.addEventListener("click", runAuto);
+    EL.btnStop.addEventListener("click", () => {
+      if (!S.running) return;
+      S.stop = true;
+      setStatus("Parando...");
+    });
+
+    EL.btnSaveSample.addEventListener("click", saveManualSample);
+    EL.btnExportModel.addEventListener("click", exportPack);
+    EL.btnImportModel.addEventListener("click", () => EL.fileImport.click());
+    EL.fileImport.addEventListener("change", async () => {
+      const f = EL.fileImport.files?.[0];
+      if (!f) return;
+      try {
+        await importPack(f);
+        setStatus("Pack importado");
+      } catch (e){
+        setStatus("Import fallido: " + String(e?.message || e));
+      }
+    });
+
+    EL.btnApplyApp.addEventListener("click", applyPackToApp);
+    EL.btnReset.addEventListener("click", resetAll);
+  })();
+  </script>
+</body>
+</html>
