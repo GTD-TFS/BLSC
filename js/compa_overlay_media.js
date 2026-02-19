@@ -566,7 +566,7 @@ el.f.onchange = async (e) => {
   if (!files.length) return;
 
   setStatus("Procesando imágenes…");
-  el.btnEnviar.disabled = true;
+  if (el.btnEnviar) el.btnEnviar.disabled = true;
 
   try{
     let okCount = 0;
@@ -616,7 +616,7 @@ state.images.push({ fi, name: `Filiación ${fi+1}`, ...out, captured: false });
     console.error(err);
     setStatus("Error procesando imágenes.", "err");
   }finally{
-    el.btnEnviar.disabled = false;
+    if (el.btnEnviar) el.btnEnviar.disabled = false;
     el.f.value = "";
     updateMainContentVisibility();
   }
