@@ -153,6 +153,46 @@ const ov = {
   title: document.getElementById('ovTitle'),
   form: document.getElementById('ovForm')
 };
+let _overlayKbTrackingOn = false;
+
+function updateOverlayKeyboardState(){
+  if (!ov.root) return;
+  const vv = window.visualViewport;
+  const baseH = window.innerHeight || document.documentElement.clientHeight || 0;
+  const vvH = vv && typeof vv.height === 'number' ? vv.height : baseH;
+  const vvTop = vv && typeof vv.offsetTop === 'number' ? vv.offsetTop : 0;
+  const keyboardPx = Math.max(0, Math.round(baseH - vvH - vvTop));
+  const kbOpen = keyboardPx > 120;
+
+  ov.root.classList.toggle('kb-open', kbOpen);
+}
+
+function keepOverlayInputVisible(target){
+  if (!target) return;
+  const wrap = ov.form ? ov.form.closest('.formwrap') : null;
+  if (!wrap) return;
+  const tr = target.getBoundingClientRect();
+  const wr = wrap.getBoundingClientRect();
+  const deltaTop = tr.top - wr.top;
+  const desired = deltaTop - (wr.height * 0.22);
+  wrap.scrollBy({ top: desired, behavior: 'smooth' });
+}
+
+function _bindOverlayKeyboardTracking(on){
+  const vv = window.visualViewport;
+  if (!vv) return;
+  if (on){
+    if (_overlayKbTrackingOn) return;
+    _overlayKbTrackingOn = true;
+    vv.addEventListener('resize', updateOverlayKeyboardState, { passive:true });
+    vv.addEventListener('scroll', updateOverlayKeyboardState, { passive:true });
+    return;
+  }
+  if (!_overlayKbTrackingOn) return;
+  _overlayKbTrackingOn = false;
+  vv.removeEventListener('resize', updateOverlayKeyboardState);
+  vv.removeEventListener('scroll', updateOverlayKeyboardState);
+}
 
 // ---- Pinch-zoom dentro del área superior (no ocupa más espacio) ----
 const zoom = {
@@ -269,6 +309,16 @@ function setupOverlayZoom(){
   ov.img.addEventListener('pointerleave', endPtr);
 }
 
+if (ov.form && !ov.form.__focusBound){
+  ov.form.__focusBound = true;
+  ov.form.addEventListener('focusin', (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLElement)) return;
+    if (t.tagName !== 'INPUT' && t.tagName !== 'SELECT' && t.tagName !== 'TEXTAREA') return;
+    setTimeout(() => keepOverlayInputVisible(t), 80);
+  });
+}
+
 function openFiliacionOverlay(i){
   const p = (state.lastJson && Array.isArray(state.lastJson.filiaciones)) ? state.lastJson.filiaciones[i] : null;
   const img64 = getImgBase64ByFi(i) || "";
@@ -352,13 +402,17 @@ function openFiliacionOverlay(i){
   });
 
   lockBodyScroll();
+  _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
   ov.root.setAttribute('aria-hidden','false');
+  updateOverlayKeyboardState();
 }
 
 function closeFiliacionOverlay(){
   resetOverlayZoom();
   unlockBodyScroll();
+  _bindOverlayKeyboardTracking(false);
+  ov.root.classList.remove('kb-open');
   ov.root.classList.remove('on');
   ov.root.setAttribute('aria-hidden','true');
   ov.img.src = '';
@@ -446,8 +500,10 @@ function openThumbOverlay(i){
   condSel?.addEventListener('change', sync);
 
   lockBodyScroll();
+  _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
   ov.root.setAttribute('aria-hidden','false');
+  updateOverlayKeyboardState();
 }
 
 if (ov.close){
