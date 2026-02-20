@@ -149,6 +149,7 @@ function getImgBase64ByFi(fi){
 const ov = {
   root: document.getElementById('imgOverlay'),
   close: document.getElementById('ovClose'),
+  closeTop: document.getElementById('ovCloseTop'),
   img: document.getElementById('ovImg'),
   title: document.getElementById('ovTitle'),
   form: document.getElementById('ovForm')
@@ -165,17 +166,6 @@ function updateOverlayKeyboardState(){
   const kbOpen = keyboardPx > 120;
 
   ov.root.classList.toggle('kb-open', kbOpen);
-}
-
-function keepOverlayInputVisible(target){
-  if (!target) return;
-  const wrap = ov.form ? ov.form.closest('.formwrap') : null;
-  if (!wrap) return;
-  const tr = target.getBoundingClientRect();
-  const wr = wrap.getBoundingClientRect();
-  const deltaTop = tr.top - wr.top;
-  const desired = deltaTop - (wr.height * 0.22);
-  wrap.scrollBy({ top: desired, behavior: 'smooth' });
 }
 
 function _bindOverlayKeyboardTracking(on){
@@ -307,16 +297,6 @@ function setupOverlayZoom(){
   ov.img.addEventListener('pointercancel', endPtr);
   ov.img.addEventListener('pointerout', endPtr);
   ov.img.addEventListener('pointerleave', endPtr);
-}
-
-if (ov.form && !ov.form.__focusBound){
-  ov.form.__focusBound = true;
-  ov.form.addEventListener('focusin', (ev) => {
-    const t = ev.target;
-    if (!(t instanceof HTMLElement)) return;
-    if (t.tagName !== 'INPUT' && t.tagName !== 'SELECT' && t.tagName !== 'TEXTAREA') return;
-    setTimeout(() => keepOverlayInputVisible(t), 80);
-  });
 }
 
 function openFiliacionOverlay(i){
@@ -508,6 +488,9 @@ function openThumbOverlay(i){
 
 if (ov.close){
   ov.close.addEventListener('click', closeFiliacionOverlay);
+}
+if (ov.closeTop){
+  ov.closeTop.addEventListener('click', closeFiliacionOverlay);
 }
 if (ov.root){
   ov.root.addEventListener('click', (e)=>{
