@@ -41,6 +41,9 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="compa.css?v=12">
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <style>
     /* ===== Filiaciones: botón de alta (sin contenedor vacío visible) ===== */
     /* Oculta SIEMPRE el wrap si no hay fichas; se mostrará por JS cuando existan */
@@ -49,9 +52,48 @@
 
     /* Overlay de imagen SIEMPRE por encima del bottomDock */
     #imgOverlay{ z-index: 200500 !important; }
+
+    /* ===== Auth gate ===== */
+    body.auth-locked #app{ display:none !important; }
+    #loginGate{
+      position:fixed;
+      inset:0;
+      z-index:300000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      background:rgba(0,0,0,.62);
+      backdrop-filter:blur(10px) saturate(120%);
+      -webkit-backdrop-filter:blur(10px) saturate(120%);
+    }
+    #loginGate[hidden]{ display:none !important; }
+    .loginCard{
+      width:min(460px, 94vw);
+      border:1px solid rgba(255,255,255,.34);
+      border-radius:18px;
+      padding:16px;
+      background:linear-gradient(165deg, rgba(244,247,252,.22), rgba(216,221,231,.14));
+      box-shadow:0 20px 40px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.45);
+      color:#fff;
+    }
+    .loginTitle{ margin:0 0 8px; font-weight:800; font-size:18px; }
+    .loginHint{ margin:0 0 12px; font-size:13px; opacity:.9; }
+    #loginStatus{
+      min-height:18px;
+      margin-top:10px;
+      font-size:12px;
+      color:#ffd4d4;
+    }
+    #loginSubmit{
+      margin-top:12px;
+      width:100%;
+      min-height:46px;
+      font-weight:800;
+    }
   </style>
 </head>
-<body>
+<body class="auth-locked">
 <svg class="fx-defs" width="0" height="0" aria-hidden="true" focusable="false">
   <defs>
     <filter id="glass-distort" x="-20%" y="-20%" width="140%" height="140%">
@@ -101,8 +143,9 @@
 </div>
     </div>
   <div class="card" id="bottomDock">
-    <div class="emoji-row two">
+    <div class="emoji-row">
       <button id="btnDescargar" type="button" disabled>↓</button>
+      <button id="btnCloud" type="button" disabled>☁️</button>
       <button id="btnLimpiar" type="button">⟳</button>
     </div>
   </div>
@@ -138,6 +181,21 @@
     </div>
   </div>
 
+  <div id="loginGate" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="loginCard">
+      <h2 class="loginTitle" id="loginTitle">Acceso COMPAPOL</h2>
+      <p class="loginHint">Inicia sesión</p>
+      <form id="loginForm" autocomplete="on">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" name="email" type="email" inputmode="email" autocomplete="username email" required>
+        <label for="loginPass">Contraseña</label>
+        <input id="loginPass" name="password" type="password" autocomplete="current-password" required>
+        <button id="loginSubmit" type="submit">Entrar</button>
+      </form>
+      <div id="loginStatus" aria-live="polite"></div>
+    </div>
+  </div>
+
 <script src="js/cifrado_descarga.js?v=2"></script>
 <script>
 /* ========= Config =========
@@ -157,6 +215,41 @@ const API_PROCESS = window.API_PROCESS_CANDIDATES[0];
 const API_RESULT  = window.API_RESULT_CANDIDATES[0];
 const MAX = 1200;
 const JPEG_QUALITY = 0.9;
+
+/* ========= Firebase DENUPOL (Auth + Inbox) ========= */
+const DENUPOL_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDUG_T31JEWDK9x_apUZVHwriWnjurNrms",
+  authDomain: "denupol.firebaseapp.com",
+  projectId: "denupol",
+  storageBucket: "denupol.firebasestorage.app",
+  messagingSenderId: "691472437659",
+  appId: "1:691472437659:web:2cdd59082976841d7d513e"
+};
+const DENUPOL_APP_NAME = "compa-pol-denupol";
+let denupolAuth = null;
+let denupolDb = null;
+const AUTH_LAST_EMAIL_KEY = "compa_denupol_last_email";
+
+function initDenupolFirebase(){
+  if (!window.firebase) throw new Error("Firebase SDK no cargado.");
+
+  const existing = firebase.apps.find(a => a && a.name === DENUPOL_APP_NAME);
+  const app = existing || firebase.initializeApp(DENUPOL_FIREBASE_CONFIG, DENUPOL_APP_NAME);
+  denupolAuth = firebase.auth(app);
+  denupolDb = firebase.firestore(app);
+}
+
+async function ensureDenupolAuth(){
+  if (!denupolAuth || !denupolDb) initDenupolFirebase();
+  if (!denupolAuth.currentUser) throw new Error("Sesión COMPAPOL no iniciada.");
+  return denupolAuth.currentUser;
+}
+
+function getInboxPayload(){
+  const raw = state.lastJson ?? {};
+  // Elimina posibles undefined y referencias no serializables.
+  return JSON.parse(JSON.stringify(raw));
+}
 
 /* ========= Estado ========= */
 const state = {
@@ -186,6 +279,7 @@ const el = {
   btnCancelar: document.getElementById('btnCancelar'),
   btnLimpiar: document.getElementById('btnLimpiar'),
   btnDescargar: document.getElementById('btnDescargar'),
+  btnCloud: document.getElementById('btnCloud'),
   btnCompartir: document.getElementById('btnCompartir'),
   btnToggleCompare: document.getElementById('btnToggleCompare'),
   status: document.getElementById('status'),
@@ -194,6 +288,12 @@ const el = {
   filiacionesOut: document.getElementById('filiacionesOut'),
   filiCountBadge: document.getElementById('filiCountBadge'),
   btnToggleFili: document.getElementById('btnToggleFili'),
+  loginGate: document.getElementById('loginGate'),
+  loginForm: document.getElementById('loginForm'),
+  loginEmail: document.getElementById('loginEmail'),
+  loginPass: document.getElementById('loginPass'),
+  loginSubmit: document.getElementById('loginSubmit'),
+  loginStatus: document.getElementById('loginStatus'),
 };
 el.jobOverlay = document.getElementById('jobOverlay');
 el.jobTitle   = document.getElementById('jobTitle');
@@ -550,8 +650,72 @@ function setBusy(on){
 }
 
 function setExportEnabled(on){
-  if (el.btnDescargar) el.btnDescargar.disabled = !on;
-  if (el.btnCompartir) el.btnCompartir.disabled = !on;
+  const allow = !!on && !!(denupolAuth && denupolAuth.currentUser);
+  if (el.btnDescargar) el.btnDescargar.disabled = !allow;
+  if (el.btnCloud) el.btnCloud.disabled = !allow;
+  if (el.btnCompartir) el.btnCompartir.disabled = !allow;
+}
+
+function showLoginGate(msg){
+  if (el.loginGate) el.loginGate.hidden = false;
+  if (el.loginStatus) el.loginStatus.textContent = msg || "";
+  const remembered = localStorage.getItem(AUTH_LAST_EMAIL_KEY) || "";
+  if (el.loginEmail && !el.loginEmail.value && remembered) el.loginEmail.value = remembered;
+  try{ el.loginEmail?.focus(); }catch{}
+}
+
+function hideLoginGate(){
+  if (el.loginGate) el.loginGate.hidden = true;
+  if (el.loginStatus) el.loginStatus.textContent = "";
+}
+
+function lockApp(){
+  document.body.classList.add("auth-locked");
+  setExportEnabled(!!state.lastJson);
+}
+
+function unlockApp(){
+  document.body.classList.remove("auth-locked");
+  setExportEnabled(!!state.lastJson);
+}
+
+async function bootstrapAuthGate(){
+  initDenupolFirebase();
+  try{
+    await denupolAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+  }catch{}
+
+  if (el.loginForm){
+    el.loginForm.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (el.loginStatus) el.loginStatus.textContent = "";
+      const email = (el.loginEmail?.value || "").trim();
+      const pass = el.loginPass?.value || "";
+      if (!email || !pass) return;
+
+      if (el.loginSubmit) el.loginSubmit.disabled = true;
+      try{
+        await denupolAuth.signInWithEmailAndPassword(email, pass);
+        localStorage.setItem(AUTH_LAST_EMAIL_KEY, email);
+      }catch(err){
+        const m = String(err?.message || err || "Error de login");
+        if (el.loginStatus) el.loginStatus.textContent = `ERROR: ${m}`;
+      }finally{
+        if (el.loginSubmit) el.loginSubmit.disabled = false;
+      }
+    });
+  }
+
+  denupolAuth.onAuthStateChanged((user) => {
+    if (user){
+      unlockApp();
+      hideLoginGate();
+      if (el.loginPass) el.loginPass.value = "";
+      return;
+    }
+    lockApp();
+    showLoginGate("Introduce tus credenciales COMPAPOL.");
+  });
 }
 
 function getJsonString(){
@@ -762,6 +926,32 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
 (function(){
   const bC = el.btnToggleCompare;
   const bF = el.btnToggleFili;
+  const compareCard = document.getElementById('compareCard');
+  const topDock = document.getElementById('topDock');
+
+  function scrollToEl(target){
+    if (!target) return;
+    const dockH = topDock ? topDock.getBoundingClientRect().height : 0;
+    const y = Math.max(0, window.scrollY + target.getBoundingClientRect().top - dockH - 12);
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  }
+
+  function scrollToCompare(){
+    // Espera al repaint para asegurar que compareCard ya es visible.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scrollToEl(compareCard));
+    });
+  }
+
+  function scrollToFirstFili(){
+    const firstFili = document.querySelector('.fili-card');
+    if (firstFili) {
+      scrollToEl(firstFili);
+      return;
+    }
+    const mainCard = document.getElementById('mainCard');
+    if (mainCard) scrollToEl(mainCard);
+  }
 
   const syncCompare = () => {
     const cOn = document.body.classList.contains('compare-on');
@@ -786,6 +976,8 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
     const willOn = !document.body.classList.contains('compare-on');
     document.body.classList.toggle('compare-on', willOn);
     syncCompare();
+    if (willOn) scrollToCompare();
+    else scrollToFirstFili();
   });
 })();
 
@@ -890,6 +1082,44 @@ const wrappedText = await window.CompaCifrado.wrapEncryptedJSON(state.lastJson);
   setStatus('JSON ENCRIPTADO descargado.', 'ok');
 };
 
+if (el.btnCloud) el.btnCloud.onclick = async () => {
+  if (!state.lastJson) return;
+  try{
+    setStatus('Autenticando en COMPAPOL…');
+    const user = await ensureDenupolAuth();
+    if (!user) throw new Error('No se pudo validar la sesión.');
+
+    if (!window.CompaCifrado?.wrapEncryptedJSON) {
+      throw new Error('Falta módulo de cifrado (CompaCifrado).');
+    }
+
+    const payload = getInboxPayload();
+    setStatus('Cifrando JSON…');
+    const wrappedText = await window.CompaCifrado.wrapEncryptedJSON(payload);
+    let wrappedObj = null;
+    try{
+      wrappedObj = JSON.parse(wrappedText);
+    }catch(_){
+      throw new Error('No se pudo preparar el JSON cifrado.');
+    }
+
+    setStatus('Enviando a Inbox…');
+    await denupolDb.collection('denupolInbox').add({
+      ...wrappedObj,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      source: 'compa_api_github_release',
+      sourceUserUid: user.uid || null
+    });
+
+    setStatus('JSON enviado a Inbox.', 'ok');
+    alert('JSON enviado a Inbox.');
+  }catch(e){
+    const msg = String(e?.message || e || 'Error desconocido');
+    setStatus(`Error Inbox: ${msg}`, 'err');
+    alert(`Error Inbox: ${msg}`);
+  }
+};
+
 if (el.btnCompartir) el.btnCompartir.onclick = async () => {
   if (!state.lastJson) return;
   const text = getJsonString();
@@ -937,6 +1167,8 @@ el.btnLimpiar.onclick = () => {
   updateFiliUI();
   updateMainContentVisibility();
 };
+
+bootstrapAuthGate();
 
 </script>
 <script src="paises.js"></script>
