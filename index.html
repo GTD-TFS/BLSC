@@ -248,8 +248,27 @@ async function ensureDenupolAuth(){
 
 function getInboxPayload(){
   const raw = state.lastJson ?? {};
-  // Elimina posibles undefined y referencias no serializables.
-  return JSON.parse(JSON.stringify(raw));
+  const out = JSON.parse(JSON.stringify(raw));
+
+  // Comparecencia: opcional. Si viene vacía, no se envía.
+  const textKeys = ["doc", "comparecencia", "doc_texto", "texto"];
+  for (const k of textKeys){
+    if (!Object.prototype.hasOwnProperty.call(out, k)) continue;
+    const v = out[k];
+    if (typeof v !== "string" || !v.trim()) delete out[k];
+  }
+
+  // Filiaciones: opcional. Si no hay elementos, no se envía.
+  if (!Array.isArray(out.filiaciones) || out.filiaciones.length === 0){
+    delete out.filiaciones;
+  }
+
+  return out;
+}
+
+function hasInboxPayload(){
+  const p = getInboxPayload();
+  return Object.keys(p).length > 0;
 }
 
 /* ========= Estado ========= */
@@ -653,7 +672,7 @@ function setBusy(on){
 function setExportEnabled(on){
   const allow = !!on && !!(denupolAuth && denupolAuth.currentUser);
   if (el.btnDescargar) el.btnDescargar.disabled = !allow;
-  if (el.btnCloud) el.btnCloud.disabled = !allow;
+  if (el.btnCloud) el.btnCloud.disabled = !(!!(denupolAuth && denupolAuth.currentUser) && hasInboxPayload());
   if (el.btnCompartir) el.btnCompartir.disabled = !allow;
 }
 
@@ -1084,7 +1103,10 @@ const wrappedText = await window.CompaCifrado.wrapEncryptedJSON(state.lastJson);
 };
 
 if (el.btnCloud) el.btnCloud.onclick = async () => {
-  if (!state.lastJson) return;
+  if (!hasInboxPayload()){
+    alert('No hay datos para enviar (filiaciones o comparecencia).');
+    return;
+  }
   try{
     setStatus('Autenticando en COMPAPOL…');
     const user = await ensureDenupolAuth();
