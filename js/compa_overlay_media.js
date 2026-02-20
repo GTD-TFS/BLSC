@@ -149,6 +149,7 @@ const ov = {
   root: document.getElementById('imgOverlay'),
   close: document.getElementById('ovClose'),
   closeTop: document.getElementById('ovCloseTop'),
+  rotate: document.getElementById('ovRotate'),
   img: document.getElementById('ovImg'),
   title: document.getElementById('ovTitle'),
   form: document.getElementById('ovForm')
@@ -222,6 +223,7 @@ const zoom = {
   startDist: 0,
   startScale: 1,
   scale: 1,
+  rot: 0,
   x: 0,
   y: 0,
   startX: 0,
@@ -235,11 +237,12 @@ function resetOverlayZoom(){
   zoom.startDist = 0;
   zoom.startScale = 1;
   zoom.scale = 1;
+  zoom.rot = 0;
   zoom.x = 0;
   zoom.y = 0;
   zoom.startX = 0;
   zoom.startY = 0;
-  if (ov.img) ov.img.style.transform = 'translate3d(0px,0px,0px) scale(1)';
+  if (ov.img) ov.img.style.transform = 'translate3d(0px,0px,0px) rotate(0deg) scale(1)';
 }
 
 function applyOverlayZoom(){
@@ -253,7 +256,7 @@ function applyOverlayZoom(){
   zoom.x = _clamp(zoom.x, -maxX, maxX);
   zoom.y = _clamp(zoom.y, -maxY, maxY);
 
-  ov.img.style.transform = `translate3d(${zoom.x}px,${zoom.y}px,0) scale(${zoom.scale})`;
+  ov.img.style.transform = `translate3d(${zoom.x}px,${zoom.y}px,0) rotate(${zoom.rot}deg) scale(${zoom.scale})`;
 }
 
 function setupOverlayZoom(){
@@ -530,6 +533,12 @@ if (ov.close){
 }
 if (ov.closeTop){
   ov.closeTop.addEventListener('click', closeFiliacionOverlay);
+}
+if (ov.rotate){
+  ov.rotate.addEventListener('click', () => {
+    zoom.rot = ((zoom.rot - 90) % 360 + 360) % 360;
+    applyOverlayZoom();
+  });
 }
 if (ov.root){
   ov.root.addEventListener('click', (e)=>{
