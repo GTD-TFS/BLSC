@@ -486,7 +486,13 @@ html.overlay-open{
 }
 
 /* Con teclado abierto: NO tocar foto; solo reducir campos vía --kb */
-#imgOverlay.kb-open .imgwrap{}
+#imgOverlay.kb-open .imgwrap{
+  height:132px;
+  min-height:132px;
+}
+#imgOverlay.kb-open .formwrap{
+  top:196px;
+}
 
 #ovClose,#btnChatGPT,#jobCancel,#imgOverlay .topbar button{min-height:42px}
 #ovCloseTop{

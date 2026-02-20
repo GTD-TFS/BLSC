@@ -155,6 +155,7 @@ const ov = {
 };
 let _overlayKbTrackingOn = false;
 let _overlayBaseViewportHeight = 0;
+let _overlayFocusPatchBound = false;
 
 function setOverlayStaticLayoutVars(){
   if (!ov.root) return;
@@ -195,6 +196,23 @@ function _bindOverlayKeyboardTracking(on){
   _overlayKbTrackingOn = false;
   vv.removeEventListener('resize', updateOverlayKeyboardState);
   vv.removeEventListener('scroll', updateOverlayKeyboardState);
+}
+
+function bindOverlayFocusPatch(){
+  if (!ov.form || _overlayFocusPatchBound) return;
+  _overlayFocusPatchBound = true;
+
+  // iOS Safari tiende a desplazar toda la vista al enfocar inputs.
+  // Forzamos focus local sin scroll global.
+  ov.form.addEventListener('touchstart', (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLElement)) return;
+    if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
+    if (document.activeElement === t) return;
+    ev.preventDefault();
+    try{ t.focus({ preventScroll:true }); }
+    catch(_){ try{ t.focus(); }catch(__){} }
+  }, { passive:false });
 }
 
 // ---- Pinch-zoom dentro del área superior (no ocupa más espacio) ----
@@ -395,6 +413,7 @@ function openFiliacionOverlay(i){
   });
 
   lockBodyScroll();
+  bindOverlayFocusPatch();
   setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
@@ -498,6 +517,7 @@ function openThumbOverlay(i){
   condSel?.addEventListener('change', sync);
 
   lockBodyScroll();
+  bindOverlayFocusPatch();
   setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
