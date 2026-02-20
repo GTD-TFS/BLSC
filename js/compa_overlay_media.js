@@ -163,6 +163,7 @@ function updateOverlayKeyboardState(){
   const kbOpen = keyboardPx > 120;
 
   ov.root.classList.toggle('kb-open', kbOpen);
+  ov.root.style.setProperty('--kb', kbOpen ? `${keyboardPx}px` : '0px');
 }
 
 function _bindOverlayKeyboardTracking(on){
@@ -390,6 +391,7 @@ function closeFiliacionOverlay(){
   unlockBodyScroll();
   _bindOverlayKeyboardTracking(false);
   ov.root.classList.remove('kb-open');
+  ov.root.style.removeProperty('--kb');
   ov.root.classList.remove('on');
   ov.root.setAttribute('aria-hidden','true');
   ov.img.src = '';

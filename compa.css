@@ -430,15 +430,24 @@ body.overlay-open{
   display:flex;
   flex-direction:column;
   background:#141922;
-  height:100vh;
-  min-height:100vh;
   pointer-events:auto;
   overflow:hidden;
 }
-#imgOverlay .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;color:#fff}
+#imgOverlay .topbar{
+  position:relative;
+  z-index:2;
+  flex:0 0 64px;
+  height:64px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  color:#fff;
+}
 #imgOverlay .topbar .t{font-weight:700}
 #imgOverlay .imgwrap{
-  flex:0 0 auto;
+  flex:0 0 34vh;
   padding:0 12px 10px;
   height:34vh;
   max-height:40vh;
@@ -448,26 +457,25 @@ body.overlay-open{
 }
 #imgOverlay img{width:100%;height:100%;max-height:100%;object-fit:contain;border-radius:14px;background:rgba(35,38,46,.9);touch-action:none;transform-origin:center center;will-change:transform}
 #imgOverlay .formwrap{
+  position:relative;
+  z-index:2;
   flex:1 1 auto;
-  min-height:0;
   overflow-y:auto;
   overflow-x:hidden;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
   border-radius:26px 26px 0 0;
-  padding:12px 12px calc(28px + env(safe-area-inset-bottom));
+  padding:12px 12px calc(22px + env(safe-area-inset-bottom));
   background:linear-gradient(165deg, rgba(241,245,251,.24), rgba(200,206,218,.2));
   border:1px solid var(--line-soft);
   backdrop-filter:blur(16px);
   -webkit-backdrop-filter:blur(16px);
+  margin-bottom:var(--kb, 0px);
+  min-height:0;
 }
 
-/* Con teclado abierto: reserva al menos ~1/3 para imagen de referencia */
-#imgOverlay.kb-open .imgwrap{
-  height:max(120px, 30vh);
-  max-height:max(120px, 30vh);
-  min-height:120px;
-}
+/* Con teclado abierto: NO tocar foto; solo reducir campos vía --kb */
+#imgOverlay.kb-open .imgwrap{}
 
 #ovClose,#btnChatGPT,#jobCancel,#imgOverlay .topbar button{min-height:42px}
 #ovCloseTop{
