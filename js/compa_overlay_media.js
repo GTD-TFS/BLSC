@@ -91,17 +91,43 @@ if (el.jobCancel){
 }
 /* ========= Scroll lock (evita que haga scroll el fondo al usar el overlay) ========= */
 let _bodyScrollLocked = false;
+let _bodyScrollY = 0;
+let _bodyPrev = null;
 
 function lockBodyScroll(){
   if (_bodyScrollLocked) return;
   _bodyScrollLocked = true;
+  _bodyScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  _bodyPrev = {
+    position: document.body.style.position,
+    top: document.body.style.top,
+    left: document.body.style.left,
+    right: document.body.style.right,
+    width: document.body.style.width,
+    overflow: document.body.style.overflow
+  };
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${_bodyScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+  document.body.style.overflow = 'hidden';
   document.body.classList.add('overlay-open');
 }
 
 function unlockBodyScroll(){
   if (!_bodyScrollLocked) return;
   _bodyScrollLocked = false;
+  const prev = _bodyPrev || {};
+  document.body.style.position = prev.position || '';
+  document.body.style.top = prev.top || '';
+  document.body.style.left = prev.left || '';
+  document.body.style.right = prev.right || '';
+  document.body.style.width = prev.width || '';
+  document.body.style.overflow = prev.overflow || '';
+  _bodyPrev = null;
   document.body.classList.remove('overlay-open');
+  window.scrollTo(0, _bodyScrollY || 0);
 }
 
 /* ========= Visor de imagen + edición (overlay) ========= */

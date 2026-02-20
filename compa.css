@@ -416,7 +416,7 @@ body.fili-has #filiWrap{display:block}
 #filiWrap{margin-top:20px}
 body.overlay-open{
   overflow:hidden !important;
-  height:100dvh;
+  height:100vh;
 }
 
 #imgOverlay{
@@ -430,16 +430,18 @@ body.overlay-open{
   display:flex;
   flex-direction:column;
   background:#141922;
-  height:calc(var(--vvh, 1vh) * 100);
+  height:100vh;
+  min-height:100vh;
   pointer-events:auto;
+  overflow:hidden;
 }
 #imgOverlay .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;color:#fff}
 #imgOverlay .topbar .t{font-weight:700}
 #imgOverlay .imgwrap{
   flex:0 0 auto;
   padding:0 12px 10px;
-  height:34dvh;
-  max-height:40dvh;
+  height:34vh;
+  max-height:40vh;
   min-height:140px;
   overflow:hidden;
   position:relative;
@@ -462,8 +464,8 @@ body.overlay-open{
 
 /* Con teclado abierto: reserva al menos ~1/3 para imagen de referencia */
 #imgOverlay.kb-open .imgwrap{
-  height:max(120px, calc(var(--vvh, 1vh) * 30));
-  max-height:max(120px, calc(var(--vvh, 1vh) * 30));
+  height:max(120px, 30vh);
+  max-height:max(120px, 30vh);
   min-height:120px;
 }
 
