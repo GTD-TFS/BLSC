@@ -418,6 +418,10 @@ body.overlay-open{
   overflow:hidden !important;
   height:100vh;
 }
+html.overlay-open{
+  overflow:hidden !important;
+  height:100vh;
+}
 
 #imgOverlay{
   position:fixed;
@@ -431,6 +435,8 @@ body.overlay-open{
   background:#141922;
   pointer-events:auto;
   overflow:hidden;
+  height:var(--ov-h, 100vh);
+  min-height:var(--ov-h, 100vh);
 }
 #imgOverlay .topbar{
   position:absolute;

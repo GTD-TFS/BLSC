@@ -113,6 +113,7 @@ function lockBodyScroll(){
   document.body.style.width = '100%';
   document.body.style.overflow = 'hidden';
   document.body.classList.add('overlay-open');
+  document.documentElement.classList.add('overlay-open');
 }
 
 function unlockBodyScroll(){
@@ -127,6 +128,7 @@ function unlockBodyScroll(){
   document.body.style.overflow = prev.overflow || '';
   _bodyPrev = null;
   document.body.classList.remove('overlay-open');
+  document.documentElement.classList.remove('overlay-open');
   window.scrollTo(0, _bodyScrollY || 0);
 }
 
@@ -161,6 +163,7 @@ function setOverlayStaticLayoutVars(){
     ? Math.round(vv.height)
     : Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
   _overlayBaseViewportHeight = Math.max(0, baseH);
+  ov.root.style.setProperty('--ov-h', `${_overlayBaseViewportHeight}px`);
   const imgH = Math.max(120, Math.round(_overlayBaseViewportHeight * 0.34));
   ov.root.style.setProperty('--ov-img-h', `${imgH}px`);
 }
@@ -405,6 +408,7 @@ function closeFiliacionOverlay(){
   _bindOverlayKeyboardTracking(false);
   ov.root.classList.remove('kb-open');
   ov.root.style.removeProperty('--kb');
+  ov.root.style.removeProperty('--ov-h');
   ov.root.style.removeProperty('--ov-img-h');
   _overlayBaseViewportHeight = 0;
   ov.root.classList.remove('on');
