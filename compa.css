@@ -414,36 +414,46 @@ body.compare-on #compareCard{display:block !important}
 #filiWrap{display:none}
 body.fili-has #filiWrap{display:block}
 #filiWrap{margin-top:20px}
+body.overlay-open{
+  overflow:hidden !important;
+  height:100dvh;
+}
 
-#imgOverlay{position:fixed;inset:0;z-index:200500 !important;display:none}
+#imgOverlay{
+  position:fixed;
+  inset:0;
+  z-index:200500 !important;
+  display:none;
+  pointer-events:none;
+}
 #imgOverlay.on{
-  display:grid;
-  grid-template-rows:auto auto minmax(0,1fr) auto;
-  background:rgba(18,20,26,.7);
+  display:flex;
+  flex-direction:column;
+  background:#141922;
   height:calc(var(--vvh, 1vh) * 100);
+  pointer-events:auto;
 }
 #imgOverlay .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;color:#fff}
 #imgOverlay .topbar .t{font-weight:700}
 #imgOverlay .imgwrap{
-  grid-row:2;
   flex:0 0 auto;
   padding:0 12px 10px;
-  height:38vh;
-  max-height:38vh;
-  min-height:180px;
+  height:34dvh;
+  max-height:40dvh;
+  min-height:140px;
   overflow:hidden;
   position:relative;
 }
 #imgOverlay img{width:100%;height:100%;max-height:100%;object-fit:contain;border-radius:14px;background:rgba(35,38,46,.9);touch-action:none;transform-origin:center center;will-change:transform}
 #imgOverlay .formwrap{
-  grid-row:3;
   flex:1 1 auto;
   min-height:0;
-  overflow:auto;
+  overflow-y:auto;
+  overflow-x:hidden;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
   border-radius:26px 26px 0 0;
-  padding:12px 12px calc(18px + env(safe-area-inset-bottom));
+  padding:12px 12px calc(28px + env(safe-area-inset-bottom));
   background:linear-gradient(165deg, rgba(241,245,251,.24), rgba(200,206,218,.2));
   border:1px solid var(--line-soft);
   backdrop-filter:blur(16px);
@@ -452,17 +462,12 @@ body.fili-has #filiWrap{display:block}
 
 /* Con teclado abierto: reserva al menos ~1/3 para imagen de referencia */
 #imgOverlay.kb-open .imgwrap{
-  flex:0 0 auto;
-  height:max(140px, calc(var(--vvh, 1vh) * 33));
-  max-height:max(140px, calc(var(--vvh, 1vh) * 33));
-  min-height:140px;
+  height:max(120px, calc(var(--vvh, 1vh) * 30));
+  max-height:max(120px, calc(var(--vvh, 1vh) * 30));
+  min-height:120px;
 }
 
 #ovClose,#btnChatGPT,#jobCancel,#imgOverlay .topbar button{min-height:42px}
-#ovClose{
-  grid-row:4;
-  margin:8px 12px calc(8px + env(safe-area-inset-bottom));
-}
 #ovCloseTop{
   min-width:42px;
   width:42px;
@@ -472,9 +477,7 @@ body.fili-has #filiWrap{display:block}
   font-size:20px !important;
   line-height:1 !important;
 }
-#imgOverlay.kb-open #ovClose{
-  display:none !important;
-}
+#ovClose{display:none !important}
 
 #jobOverlay{position:fixed;inset:0;z-index:200000;display:none}
 #jobOverlay.on{display:flex}
