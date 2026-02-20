@@ -152,12 +152,24 @@ const ov = {
   form: document.getElementById('ovForm')
 };
 let _overlayKbTrackingOn = false;
+let _overlayBaseViewportHeight = 0;
+
+function setOverlayStaticLayoutVars(){
+  if (!ov.root) return;
+  const vv = window.visualViewport;
+  const baseH = vv && typeof vv.height === 'number'
+    ? Math.round(vv.height)
+    : Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
+  _overlayBaseViewportHeight = Math.max(0, baseH);
+  const imgH = Math.max(120, Math.round(_overlayBaseViewportHeight * 0.34));
+  ov.root.style.setProperty('--ov-img-h', `${imgH}px`);
+}
 
 function updateOverlayKeyboardState(){
   if (!ov.root) return;
   const vv = window.visualViewport;
-  const baseH = window.innerHeight || document.documentElement.clientHeight || 0;
-  const vvH = vv && typeof vv.height === 'number' ? vv.height : baseH;
+  const baseH = _overlayBaseViewportHeight || Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
+  const vvH = vv && typeof vv.height === 'number' ? Math.round(vv.height) : baseH;
   const vvTop = vv && typeof vv.offsetTop === 'number' ? vv.offsetTop : 0;
   const keyboardPx = Math.max(0, Math.round(baseH - vvH - vvTop));
   const kbOpen = keyboardPx > 120;
@@ -380,6 +392,7 @@ function openFiliacionOverlay(i){
   });
 
   lockBodyScroll();
+  setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
   ov.root.setAttribute('aria-hidden','false');
@@ -392,6 +405,8 @@ function closeFiliacionOverlay(){
   _bindOverlayKeyboardTracking(false);
   ov.root.classList.remove('kb-open');
   ov.root.style.removeProperty('--kb');
+  ov.root.style.removeProperty('--ov-img-h');
+  _overlayBaseViewportHeight = 0;
   ov.root.classList.remove('on');
   ov.root.setAttribute('aria-hidden','true');
   ov.img.src = '';
@@ -479,6 +494,7 @@ function openThumbOverlay(i){
   condSel?.addEventListener('change', sync);
 
   lockBodyScroll();
+  setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
   ov.root.setAttribute('aria-hidden','false');

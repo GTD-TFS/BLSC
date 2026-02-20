@@ -427,16 +427,17 @@ body.overlay-open{
   pointer-events:none;
 }
 #imgOverlay.on{
-  display:flex;
-  flex-direction:column;
+  display:block;
   background:#141922;
   pointer-events:auto;
   overflow:hidden;
 }
 #imgOverlay .topbar{
-  position:relative;
-  z-index:2;
-  flex:0 0 64px;
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  z-index:3;
   height:64px;
   display:flex;
   align-items:center;
@@ -447,19 +448,24 @@ body.overlay-open{
 }
 #imgOverlay .topbar .t{font-weight:700}
 #imgOverlay .imgwrap{
-  flex:0 0 34vh;
+  position:absolute;
+  top:64px;
+  left:0;
+  right:0;
+  z-index:2;
   padding:0 12px 10px;
-  height:34vh;
-  max-height:40vh;
-  min-height:140px;
+  height:var(--ov-img-h, 34vh);
+  min-height:120px;
   overflow:hidden;
-  position:relative;
 }
 #imgOverlay img{width:100%;height:100%;max-height:100%;object-fit:contain;border-radius:14px;background:rgba(35,38,46,.9);touch-action:none;transform-origin:center center;will-change:transform}
 #imgOverlay .formwrap{
-  position:relative;
-  z-index:2;
-  flex:1 1 auto;
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(64px + var(--ov-img-h, 34vh));
+  bottom:var(--kb, 0px);
+  z-index:3;
   overflow-y:auto;
   overflow-x:hidden;
   overscroll-behavior:contain;
@@ -470,8 +476,7 @@ body.overlay-open{
   border:1px solid var(--line-soft);
   backdrop-filter:blur(16px);
   -webkit-backdrop-filter:blur(16px);
-  margin-bottom:var(--kb, 0px);
-  min-height:0;
+  min-height:120px;
 }
 
 /* Con teclado abierto: NO tocar foto; solo reducir campos vía --kb */
