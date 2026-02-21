@@ -101,11 +101,13 @@
     st.textContent = `
       .cbm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.54);z-index:400000;display:none;align-items:flex-end;justify-content:center;overscroll-behavior:contain}
       .cbm-overlay.open{display:flex}
-      .cbm-panel{width:min(760px,100vw);max-height:92vh;overflow:auto;overscroll-behavior:contain;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));color:var(--ink);border:1px solid var(--line-soft);border-radius:24px 24px 0 0;padding:14px 14px 92px;font-family:'Inter','Segoe UI',sans-serif;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--shadow-inner),var(--shadow-outer)}
+      .cbm-panel{width:min(760px,calc(100vw - 12px));max-height:92vh;overflow:auto;overflow-x:hidden;overscroll-behavior:contain;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));color:var(--ink);border:1px solid var(--line-soft);border-radius:24px 24px 0 0;padding:14px 14px 92px;font-family:'Inter','Segoe UI',sans-serif;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--shadow-inner),var(--shadow-outer)}
       .cbm-grid{display:grid;grid-template-columns:1fr;gap:10px}
       .cbm-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+      .cbm-row > div{min-width:0}
       .cbm-lbl{font-size:12px;font-weight:700;color:var(--ink);margin:2px 0}
-      .cbm-in,.cbm-sel,.cbm-ta{width:100%;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));color:var(--ink);padding:9px 10px;font-size:15px;box-sizing:border-box}
+      .cbm-in,.cbm-sel,.cbm-ta{display:block;width:100%;max-width:100%;min-width:0;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));color:var(--ink);padding:9px 10px;font-size:15px;box-sizing:border-box}
+      #cbmFecha,#cbmHora{-webkit-appearance:none;appearance:none;min-width:0}
       .cbm-sec{border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:10px;margin-top:10px}
       .cbm-sec h3{margin:0 0 8px;font-size:14px}
       .cbm-actions{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));border-top:1px solid var(--line-soft);padding:10px;display:flex;gap:8px;z-index:400001;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}

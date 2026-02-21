@@ -40,7 +40,7 @@
   </script>
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="compa.css?v=16">
+  <link rel="stylesheet" href="compa.css?v=17">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -878,7 +878,7 @@ async function shareOrDownloadImage(idx){
   try{
     if (navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))) {
       await navigator.share({ files:[file], title:'Imagen', text:'' });
-      setStatus('Abierta hoja de compartir.', 'ok');
+      setStatus('Usa "Guardar imagen" para enviarla a Fotos.', 'ok');
       return;
     }
   }catch(e){
@@ -887,7 +887,16 @@ async function shareOrDownloadImage(idx){
     if (msg.includes('abort') || msg.includes('cancel')) return;
   }
 
-  // Fallback: descarga (en iOS suele ir a Archivos/Descargas)
+  // Fallback iOS: abrir imagen para "Guardar en Fotos" (evita fichero en Archivos).
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || "");
+  if (isIOS){
+    const w = window.open(it.base64, "_blank");
+    if (!w) window.location.href = it.base64;
+    setStatus('Mantén pulsado y elige "Guardar en Fotos".', 'muted');
+    return;
+  }
+
+  // Otros entornos: descarga normal.
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1301,8 +1310,8 @@ bootstrapAuthGate();
 <script src="municipios.js"></script>
 <script src="js/compa_crypto_resize.js?v=1"></script>
 <script src="js/filiaciones_ui.js?v=4"></script>
-<script src="js/compa_overlay_media.js?v=6"></script>
+<script src="js/compa_overlay_media.js?v=7"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
-<script src="js/denupol_modal_bundle.js?v=5"></script>
+<script src="js/denupol_modal_bundle.js?v=6"></script>
 </body>
 </html>

@@ -171,7 +171,7 @@ function setOverlayStaticLayoutVars(){
     : Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
   _overlayBaseViewportHeight = Math.max(0, baseH);
   ov.root.style.setProperty('--ov-h', `${_overlayBaseViewportHeight}px`);
-  const imgH = Math.max(170, Math.round(_overlayBaseViewportHeight * 0.42));
+  const imgH = Math.max(150, Math.round(_overlayBaseViewportHeight * 0.36));
   ov.root.style.setProperty('--ov-img-h', `${imgH}px`);
 }
 
@@ -420,10 +420,11 @@ function openFiliacionOverlay(i){
                 data-ov-k="${escapeHtml(k)}"
                 value="${escapeHtml(v)}"
                 ${isBirth ? `inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa"` : ``}
+                ${isGuided ? `readonly aria-readonly="true"` : ``}
                 class="${isGuided ? "ov-readonly-input" : ""}"
               />
             `}
-            ${isGuided ? `<span class="ov-edit-hint" aria-hidden="true">→ ✎</span>` : ``}
+            ${isGuided ? `<span class="ov-edit-hint" aria-hidden="true">→</span>` : ``}
           </div>
         `;
       }).join('')}

@@ -585,7 +585,7 @@ html.overlay-open{
   right:0;
   z-index:2;
   padding:calc(env(safe-area-inset-top) + 4px) 8px 8px;
-  height:var(--ov-img-h, 42vh);
+  height:var(--ov-img-h, 36vh);
   min-height:120px;
   overflow:hidden;
 }
@@ -594,7 +594,7 @@ html.overlay-open{
   position:absolute;
   left:0;
   right:0;
-  top:var(--ov-img-h, 42vh);
+  top:var(--ov-img-h, 36vh);
   bottom:var(--kb, 0px);
   z-index:3;
   overflow-y:auto;
@@ -612,11 +612,11 @@ html.overlay-open{
 
 /* Con teclado abierto: NO tocar foto; solo reducir campos vía --kb */
 #imgOverlay.kb-open .imgwrap{
-  height:var(--ov-img-h, 42vh);
-  min-height:120px;
+  height:clamp(110px, 24vh, 170px);
+  min-height:110px;
 }
 #imgOverlay.kb-open .formwrap{
-  top:var(--ov-img-h, 42vh);
+  top:clamp(110px, 24vh, 170px);
 }
 
 #imgOverlay.mode-no-image .imgwrap{
@@ -854,18 +854,20 @@ button{
   position:relative;
 }
 .ov-readonly-input{
-  background:linear-gradient(165deg, rgba(160,170,182,.20), rgba(125,137,154,.14)) !important;
-  border-color:rgba(170,183,200,.45) !important;
-  color:rgba(231,240,251,.92) !important;
-  padding-right:56px !important;
+  background:linear-gradient(165deg, rgba(118,130,150,.30), rgba(93,107,126,.22)) !important;
+  border-color:rgba(168,183,201,.55) !important;
+  color:rgba(226,237,249,.92) !important;
+  padding-right:36px !important;
 }
 .ov-edit-hint{
   position:absolute;
-  right:12px;
-  top:38px;
-  font-size:14px;
+  right:14px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:16px;
   color:rgba(188,214,245,.95);
   pointer-events:none;
+  line-height:1;
 }
 
 .fili-actions .btnmini{
