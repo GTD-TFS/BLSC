@@ -144,8 +144,8 @@
     </div>
   <div class="card" id="bottomDock">
     <div class="emoji-row">
-      <button id="btnDescargar" type="button" disabled>↓</button>
-      <button id="btnCloud" type="button" disabled>☁️</button>
+      <button id="btnDescargar" type="button">↓</button>
+      <button id="btnCloud" type="button">☁️</button>
       <button id="btnLimpiar" type="button">⟳</button>
     </div>
   </div>
@@ -685,8 +685,11 @@ function renderFiliaciones(obj){
     b.addEventListener('click', async (ev) => {
       ev.stopPropagation();
       const fi = Number(b.getAttribute('data-save-img'));
-      const idx = Array.isArray(state.images) ? state.images.findIndex(im => Number(im?.fi) === fi) : -1;
-      if (idx < 0) return;
+      const idx = resolveImageIndexByFi(fi);
+      if (idx < 0){
+        alert('No se encontró una imagen válida para guardar.');
+        return;
+      }
       try{
         await shareOrDownloadImage(idx);
       }catch(_){}
@@ -767,10 +770,19 @@ function setBusy(on){
 }
 
 function setExportEnabled(on){
-  const allow = !!on && !!(denupolAuth && denupolAuth.currentUser);
-  if (el.btnDescargar) el.btnDescargar.disabled = !allow;
-  if (el.btnCloud) el.btnCloud.disabled = !(!!(denupolAuth && denupolAuth.currentUser) && hasInboxPayload());
-  if (el.btnCompartir) el.btnCompartir.disabled = !allow;
+  if (el.btnDescargar) el.btnDescargar.disabled = false;
+  if (el.btnCloud) el.btnCloud.disabled = false;
+  if (el.btnCompartir) el.btnCompartir.disabled = false;
+}
+
+function resolveImageIndexByFi(fi){
+  if (!Array.isArray(state.images) || state.images.length === 0) return -1;
+  const n = Number(fi);
+  let idx = state.images.findIndex(im => Number(im?.fi) === n && !!im?.base64);
+  if (idx >= 0) return idx;
+  if (Number.isInteger(n) && n >= 0 && n < state.images.length && !!state.images[n]?.base64) return n;
+  idx = state.images.findIndex(im => !!im?.base64);
+  return idx;
 }
 
 function showLoginGate(msg){
@@ -872,8 +884,18 @@ async function shareOrDownloadImage(idx){
   const ua = navigator.userAgent || "";
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   if (isIOS){
-    const w = window.open(it.base64, "_blank");
-    if (!w) window.location.href = it.base64;
+    const a = document.createElement('a');
+    a.href = it.base64;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => {
+      if (!document.hidden){
+        try{ window.location.assign(it.base64); }catch(_){}
+      }
+    }, 250);
     setStatus('Mantén pulsado y elige "Guardar en Fotos".', 'muted');
     return;
   }
