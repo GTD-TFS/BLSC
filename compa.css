@@ -185,7 +185,7 @@ textarea,input,select{
 textarea::placeholder,input::placeholder{color:rgba(246,248,252,.72)}
 textarea{min-height:145px;resize:vertical}
 input,select{min-height:44px}
-label{display:block;margin:10px 0 6px;font-weight:600;color:#f3f6fb}
+label{display:block;margin:10px 0 6px;font-weight:600;color:#aecdff}
 
 button{
   border:1px solid var(--line);
@@ -847,7 +847,7 @@ button{
 }
 
 .fili-grid label{
-  color:#dbe9ff;
+  color:#aecdff;
   font-weight:700;
 }
 .ov-guided-field{

@@ -105,7 +105,7 @@
       .cbm-grid{display:grid;grid-template-columns:1fr;gap:10px}
       .cbm-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
       .cbm-row > div{min-width:0}
-      .cbm-lbl{font-size:12px;font-weight:700;color:var(--ink);margin:2px 0}
+      .cbm-lbl{font-size:12px;font-weight:700;color:#aecdff;margin:2px 0}
       .cbm-in,.cbm-sel,.cbm-ta{display:block;width:100%;max-width:100%;min-width:0;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));color:var(--ink);padding:9px 10px;font-size:15px;box-sizing:border-box}
       #cbmFecha,#cbmHora{-webkit-appearance:none;appearance:none;min-width:0}
       .cbm-sec{border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:10px;margin-top:10px}

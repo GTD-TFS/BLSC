@@ -40,7 +40,7 @@
   </script>
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="compa.css?v=18">
+  <link rel="stylesheet" href="compa.css?v=19">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -883,33 +883,58 @@ async function shareOrDownloadImage(idx){
 
   const ua = navigator.userAgent || "";
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  if (isIOS){
-    const a = document.createElement('a');
-    a.href = it.base64;
-    a.target = "_blank";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => {
-      if (!document.hidden){
-        try{ window.location.assign(it.base64); }catch(_){}
-      }
-    }, 250);
-    setStatus('Mantén pulsado y elige "Guardar en Fotos".', 'muted');
-    return;
-  }
-
   const blob = dataUrlToBlob(it.base64);
   const ext = (blob.type === 'image/png') ? 'png' : 'jpg';
   const name = (it.name && String(it.name).trim()) ? String(it.name).trim() : `imagen_${idx+1}.${ext}`;
   const file = new File([blob], name, {type: blob.type || 'image/jpeg'});
 
-  // iOS: si aparece “Guardar imagen” en la hoja de compartir, el usuario puede mandarla a Fotos.
+  const showIOSSaveOverlay = () => {
+    let ov = document.getElementById('iosPhotoSaveOverlay');
+    if (!ov){
+      ov = document.createElement('div');
+      ov.id = 'iosPhotoSaveOverlay';
+      ov.style.position = 'fixed';
+      ov.style.inset = '0';
+      ov.style.zIndex = '450000';
+      ov.style.background = 'rgba(8,12,22,.92)';
+      ov.style.display = 'flex';
+      ov.style.flexDirection = 'column';
+      ov.style.padding = '12px';
+      ov.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;color:#dff0ff;font-weight:700;margin-bottom:8px">
+          <span>Guardar en Fotos</span>
+          <button type="button" id="iosPhotoSaveClose" style="min-width:42px;height:42px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff">↩︎</button>
+        </div>
+        <div style="color:#c8daef;font-size:13px;margin:0 0 8px">Mantén pulsado sobre la imagen y elige "Guardar en Fotos".</div>
+        <img id="iosPhotoSaveImg" alt="Foto" style="width:100%;height:100%;object-fit:contain;border-radius:10px;background:#0f1728" />
+      `;
+      document.body.appendChild(ov);
+      ov.querySelector('#iosPhotoSaveClose')?.addEventListener('click', ()=>ov.remove());
+    }
+    const img = ov.querySelector('#iosPhotoSaveImg');
+    if (img) img.src = it.base64;
+  };
+
+  if (isIOS){
+    try{
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))) {
+        await navigator.share({ files:[file], title:'Imagen', text:'' });
+        setStatus('Usa "Guardar imagen" para enviarla a Fotos.', 'ok');
+        return;
+      }
+    }catch(e){
+      const msg = String(e?.message || '').toLowerCase();
+      if (msg.includes('abort') || msg.includes('cancel')) return;
+    }
+    showIOSSaveOverlay();
+    setStatus('Mantén pulsado y elige "Guardar en Fotos".', 'muted');
+    return;
+  }
+
   try{
     if (navigator.share && (!navigator.canShare || navigator.canShare({ files:[file] }))) {
       await navigator.share({ files:[file], title:'Imagen', text:'' });
-      setStatus('Usa "Guardar imagen" para enviarla a Fotos.', 'ok');
+      setStatus('Imagen compartida.', 'ok');
       return;
     }
   }catch(e){
@@ -1334,6 +1359,6 @@ bootstrapAuthGate();
 <script src="js/filiaciones_ui.js?v=4"></script>
 <script src="js/compa_overlay_media.js?v=8"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
-<script src="js/denupol_modal_bundle.js?v=6"></script>
+<script src="js/denupol_modal_bundle.js?v=7"></script>
 </body>
 </html>
