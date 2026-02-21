@@ -2,9 +2,12 @@
   "name": "COMPA-POL",
   "short_name": "COMPA-POL",
   "description": "Edicion y gestion de comparecencias y filiaciones.",
+  "id": "/",
   "start_url": "./",
   "scope": "./",
+  "display_override": ["standalone", "minimal-ui"],
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0b0b0b",
   "theme_color": "#0b0b0b",
   "icons": [

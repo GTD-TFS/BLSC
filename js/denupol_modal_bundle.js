@@ -114,8 +114,8 @@
       .cbm-btn{flex:1;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line);background:linear-gradient(165deg,var(--glass-c),rgba(218,223,233,.18));color:var(--ink);font-weight:700}
       .cbm-btn.primary{border-color:var(--edge-hi)}
       .cbm-err{font-size:12px;color:var(--err);min-height:14px}
-      .cbm-check{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:linear-gradient(165deg,var(--glass-a),var(--glass-b))}
-      .cbm-check input{margin-top:2px;width:16px !important;height:16px;min-height:16px;flex:0 0 16px;accent-color:#22c55e}
+      .cbm-check{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:linear-gradient(165deg,var(--glass-a),var(--glass-b))}
+      .cbm-check input{margin-top:0;width:16px !important;height:16px;min-height:16px;flex:0 0 16px;accent-color:#22c55e}
       .cbm-chipbox{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;border:0;background:transparent;min-height:32px}
       .cbm-chip{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(165deg,var(--glass-c),rgba(218,223,233,.18));border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:12px}
       .cbm-chip button{all:unset;cursor:pointer;font-size:13px;line-height:1;color:var(--err)}
@@ -124,11 +124,6 @@
       @media (max-width:640px){.cbm-row{grid-template-columns:1fr}.cbm-panel{padding-bottom:98px}}
     `;
     document.head.appendChild(st);
-  }
-
-  function renderTipoHecho(select, clase){
-    const list = TIPOS_POR_CLASE[clase] || [];
-    select.innerHTML = '<option value="">Seleccione tipo de hecho</option>' + list.map(v => `<option>${v}</option>`).join("");
   }
 
   function buildModal(){
@@ -146,7 +141,7 @@
         <div class="cbm-sec" data-sec="base">
           <h3>Patrulla e intervención</h3>
           <div class="cbm-grid">
-            <div><div class="cbm-lbl">Unidad/grupo</div><input class="cbm-in" id="cbmUnidad"/></div>
+            <div><div class="cbm-lbl">Unidad/grupo</div><input class="cbm-in" id="cbmUnidad" readonly aria-readonly="true"/></div>
             <div>
               <div class="cbm-lbl">Indicativos</div>
               <input class="cbm-in" id="cbmIndicativoInput" list="cbmIndicativos" />
@@ -163,10 +158,10 @@
             </div>
             <div><div class="cbm-lbl">Origen actuación</div><select class="cbm-sel" id="cbmOrigen"><option value="">Seleccione</option><option>Suceso Sala 091</option><option>A iniciativa propia</option><option>A requerimiento de ciudadano</option><option>Por orden de la superioridad</option></select></div>
             <div><div class="cbm-lbl">Clase actuación</div><select class="cbm-sel" id="cbmClase"></select></div>
-            <div><div class="cbm-lbl">Tipo hecho</div><select class="cbm-sel" id="cbmTipoHecho"></select></div>
+            <div><div class="cbm-lbl">Tipo hecho</div><input class="cbm-in" id="cbmTipoHechoInput" list="cbmTipoHechos" placeholder="Seleccione tipo de hecho"/><div class="cbm-hint">En DELITOS e INFRACCIONES escribe al menos 3 letras.</div></div>
             <div><div class="cbm-lbl">Naturaleza lugar</div><select class="cbm-sel" id="cbmNaturaleza"><option value="">Seleccione</option><option value="Vía publica urbana">Vía publica urbana</option></select></div>
             <div><div class="cbm-lbl">Municipio</div><select class="cbm-sel" id="cbmMunicipio"><option value="">Seleccione</option><option>ADEJE</option><option>ARONA</option></select></div>
-            <div><div class="cbm-lbl">Calle</div><input class="cbm-in" id="cbmCalle" list="cbmCalles" placeholder="Escribe 3 letras"/><div class="cbm-hint">Solo se admite una calle del listado del municipio.</div></div>
+            <div><div class="cbm-lbl">Calle</div><input class="cbm-in" id="cbmCalle" list="cbmCalles"/><div class="cbm-hint">Solo se admite una calle del listado del municipio.</div></div>
           </div>
         </div>
       </div>
@@ -175,6 +170,7 @@
         <button type="button" class="cbm-btn primary" id="cbmConfirm">Continuar</button>
       </div>
       <datalist id="cbmIndicativos"></datalist>
+      <datalist id="cbmTipoHechos"></datalist>
       <datalist id="cbmCalles"></datalist>
     `;
     document.body.appendChild(ov);
@@ -188,7 +184,8 @@
     const toast = $("#cbmToast");
     const err = $("#cbmErr");
     const clase = $("#cbmClase");
-    const tipoHecho = $("#cbmTipoHecho");
+    const tipoHechoInput = $("#cbmTipoHechoInput");
+    const tiposDL = $("#cbmTipoHechos");
     const indicativosDL = $("#cbmIndicativos");
     const callesDL = $("#cbmCalles");
     const indicativosChips = $("#cbmIndicativosChips");
@@ -240,13 +237,23 @@
     $("#cbmCalle").value = form.calleInput || "";
 
     function refreshTipo(){
-      renderTipoHecho(tipoHecho, clase.value);
-      if (form.tipoHecho) tipoHecho.value = form.tipoHecho;
+      const claseVal = clase.value;
+      const all = TIPOS_POR_CLASE[claseVal] || [];
+      const q = String(tipoHechoInput.value || "").trim();
+      const qn = keyNorm(q);
+      const needs3 = (claseVal === "DELITOS" || claseVal === "INFRACCIONES");
+
+      tiposDL.innerHTML = "";
+      if (!claseVal) return;
+      if (needs3 && q.length < 3) return;
+
+      const filtered = needs3 ? all.filter(v => keyNorm(v).includes(qn)).slice(0, 140) : all.slice(0, 140);
+      tiposDL.innerHTML = filtered.map(v => `<option value="${v}">`).join("");
     }
 
     if (form.claseActuacion) clase.value = form.claseActuacion;
     refreshTipo();
-    if (form.tipoHecho) tipoHecho.value = form.tipoHecho;
+    if (form.tipoHecho) tipoHechoInput.value = form.tipoHecho;
 
     function renderIndicativos(){
       indicativosChips.innerHTML = "";
@@ -327,7 +334,13 @@
       });
     }
 
-    clase.addEventListener("change", () => { form.tipoHecho = ""; refreshTipo(); });
+    clase.addEventListener("change", () => {
+      form.tipoHecho = "";
+      tipoHechoInput.value = "";
+      refreshTipo();
+    });
+    tipoHechoInput.addEventListener("input", refreshTipo);
+    tipoHechoInput.addEventListener("focus", refreshTipo);
     $("#cbmMunicipio").addEventListener("change", () => {
       form.selectedStreet = null;
       $("#cbmCalle").value = "";
@@ -354,7 +367,7 @@
         horaInicio: horaVal,
         datosActuacion: $("#cbmOrigen").value,
         claseActuacion: clase.value,
-        tipoHecho: tipoHecho.value,
+        tipoHecho: String(tipoHechoInput.value || "").trim(),
         naturalezaLugar: $("#cbmNaturaleza").value,
         municipio: $("#cbmMunicipio").value,
         calleInput: $("#cbmCalle").value.trim(),
@@ -372,6 +385,8 @@
       if (!data.datosActuacion) return "Selecciona origen de actuación.";
       if (!data.claseActuacion) return "Falta Clase de actuación.";
       if (!data.tipoHecho) return "Falta Tipo de hecho.";
+      const tipos = TIPOS_POR_CLASE[data.claseActuacion] || [];
+      if (!tipos.includes(data.tipoHecho)) return "Selecciona un Tipo de hecho del listado.";
       if (!data.naturalezaLugar) return "Selecciona naturaleza del lugar.";
       if (!data.municipio) return "Selecciona municipio (ADEJE o ARONA).";
       if (!data.calleInput || data.calleInput.length < 3) return "Escribe al menos 3 letras de la calle.";
