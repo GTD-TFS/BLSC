@@ -272,6 +272,40 @@ function hasInboxPayload(){
   return Object.keys(p).length > 0;
 }
 
+function pickIndicativo(payload){
+  const p = payload && typeof payload === "object" ? payload : {};
+  const firstFili = Array.isArray(p.filiaciones) ? (p.filiaciones[0] || {}) : {};
+  const candidatos = [
+    p.indicativo,
+    p.Indicativo,
+    p.nombre_indicativo,
+    p.nombreIndicativo,
+    Array.isArray(p.indicativos) ? p.indicativos[0] : null,
+    p?.hechos?.indicativo,
+    Array.isArray(p?.hechos?.indicativos) ? p.hechos.indicativos[0] : null,
+    firstFili["Indicativo"],
+    firstFili["indicativo"],
+    firstFili["Nombre indicativo"],
+    firstFili["nombre_indicativo"]
+  ];
+
+  for (const v of candidatos){
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "SIN INDICATIVO";
+}
+
+function buildInboxLabel(payload){
+  const now = new Date();
+  const meses = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mmm = meses[now.getMonth()] || "JAN";
+  const yy = String(now.getFullYear()).slice(-2);
+  const hh = String(now.getHours()).padStart(2, "0");
+  const indicativo = pickIndicativo(payload).toUpperCase();
+  return `${indicativo} ${dd}${mmm}${yy} ${hh}H`;
+}
+
 /* ========= Estado ========= */
 const state = {
   images: [],       // {name, base64, w, h}
@@ -1118,6 +1152,8 @@ if (el.btnCloud) el.btnCloud.onclick = async () => {
     }
 
     const payload = getInboxPayload();
+    const inboxLabel = buildInboxLabel(payload);
+    const tokenPublico = (typeof payload.token === "string" && payload.token.trim()) ? payload.token.trim() : null;
     setStatus('Cifrando JSON…');
     const wrappedText = await window.CompaCifrado.wrapEncryptedJSON(payload);
     let wrappedObj = null;
@@ -1130,6 +1166,8 @@ if (el.btnCloud) el.btnCloud.onclick = async () => {
     setStatus('Enviando a Inbox…');
     await denupolDb.collection('denupolInbox').add({
       ...wrappedObj,
+      label: inboxLabel,
+      tokenPublico,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       source: 'compa_api_github_release',
       sourceUserUid: user.uid || null
