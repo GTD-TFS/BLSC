@@ -1,5 +1,4 @@
 (function(){
-  const STORAGE_KEY = "compa_casebundle_draft_v2";
   const STYLE_ID = "denupol-casebundle-style";
 
   const INDICATIVOS = [
@@ -47,6 +46,10 @@
   }
 
   function normalizeAgents(text){ return String(text || "").split(/[;,\n]/).map(s => s.trim()).filter(Boolean); }
+  function normalizeIndicativos(v){
+    if (Array.isArray(v)) return v.map(x => String(x || "").trim()).filter(Boolean);
+    return String(v || "").split(/[;\n,]+/).map(x => x.trim()).filter(Boolean);
+  }
   function keyNorm(s){ return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
 
   function ensureCallejero(){
@@ -96,26 +99,25 @@
     const st = document.createElement("style");
     st.id = STYLE_ID;
     st.textContent = `
-      .cbm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.66);z-index:400000;display:none;align-items:flex-end;justify-content:center}
+      .cbm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.54);z-index:400000;display:none;align-items:flex-end;justify-content:center;overscroll-behavior:contain}
       .cbm-overlay.open{display:flex}
-      .cbm-panel{width:min(760px,100vw);max-height:92vh;overflow:auto;background:#111827;color:#f3f4f6;border-radius:16px 16px 0 0;padding:14px 14px 92px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+      .cbm-panel{width:min(760px,100vw);max-height:92vh;overflow:auto;overscroll-behavior:contain;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));color:var(--ink);border:1px solid var(--line-soft);border-radius:24px 24px 0 0;padding:14px 14px 92px;font-family:'Inter','Segoe UI',sans-serif;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--shadow-inner),var(--shadow-outer)}
       .cbm-grid{display:grid;grid-template-columns:1fr;gap:10px}
       .cbm-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-      .cbm-lbl{font-size:12px;font-weight:700;color:#d1d5db;margin:2px 0}
-      .cbm-in,.cbm-sel,.cbm-ta{width:100%;min-height:44px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#f9fafb;padding:9px 10px;font-size:15px}
-      .cbm-sec{border:1px solid #374151;border-radius:12px;padding:10px;margin-top:10px}
+      .cbm-lbl{font-size:12px;font-weight:700;color:var(--ink);margin:2px 0}
+      .cbm-in,.cbm-sel,.cbm-ta{width:100%;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));color:var(--ink);padding:9px 10px;font-size:15px}
+      .cbm-sec{border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:10px;margin-top:10px}
       .cbm-sec h3{margin:0 0 8px;font-size:14px}
-      .cbm-actions{position:fixed;left:0;right:0;bottom:0;background:rgba(17,24,39,.97);border-top:1px solid #374151;padding:10px;display:flex;gap:8px;z-index:400001}
-      .cbm-btn{flex:1;min-height:44px;border-radius:10px;border:1px solid #6b7280;background:#1f2937;color:#fff;font-weight:700}
-      .cbm-btn.primary{background:#2563eb;border-color:#2563eb}
-      .cbm-btn.warn{background:#7c2d12;border-color:#7c2d12}
-      .cbm-err{font-size:12px;color:#fca5a5;min-height:14px}
-      .cbm-check{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid #475569;border-radius:10px;background:#0f172a}
+      .cbm-actions{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));border-top:1px solid var(--line-soft);padding:10px;display:flex;gap:8px;z-index:400001;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
+      .cbm-btn{flex:1;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line);background:linear-gradient(165deg,var(--glass-c),rgba(218,223,233,.18));color:var(--ink);font-weight:700}
+      .cbm-btn.primary{border-color:var(--edge-hi)}
+      .cbm-err{font-size:12px;color:var(--err);min-height:14px}
+      .cbm-check{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:linear-gradient(165deg,var(--glass-a),var(--glass-b))}
       .cbm-check input{margin-top:2px;width:16px !important;height:16px;min-height:16px;flex:0 0 16px;accent-color:#22c55e}
-      .cbm-chipbox{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid #374151;border-radius:10px;background:#0b1220;min-height:44px}
-      .cbm-chip{display:inline-flex;align-items:center;gap:6px;background:#1f2937;border:1px solid #4b5563;border-radius:999px;padding:4px 8px;font-size:12px}
-      .cbm-chip button{all:unset;cursor:pointer;font-size:13px;line-height:1;color:#fca5a5}
-      .cbm-hint{font-size:11px;color:#93c5fd}
+      .cbm-chipbox{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));min-height:44px}
+      .cbm-chip{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(165deg,var(--glass-c),rgba(218,223,233,.18));border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:12px}
+      .cbm-chip button{all:unset;cursor:pointer;font-size:13px;line-height:1;color:var(--err)}
+      .cbm-hint{font-size:11px;color:var(--muted)}
       @media (max-width:640px){.cbm-row{grid-template-columns:1fr}.cbm-panel{padding-bottom:98px}}
     `;
     document.head.appendChild(st);
@@ -162,7 +164,6 @@
       </div>
       <div class="cbm-actions">
         <button type="button" class="cbm-btn" id="cbmCancel">Cancelar</button>
-        <button type="button" class="cbm-btn warn" id="cbmSave">Guardar borrador</button>
         <button type="button" class="cbm-btn primary" id="cbmConfirm">Continuar</button>
       </div>
       <datalist id="cbmIndicativos"></datalist>
@@ -184,30 +185,38 @@
     const indicativosChips = $("#cbmIndicativosChips");
     const indicativoInput = $("#cbmIndicativoInput");
     const indicativoSet = new Set();
+    const panel = ov.querySelector(".cbm-panel");
+    const root = document.documentElement;
+    const body = document.body;
+    const savedRootOverflow = root.style.overflow;
+    const savedBodyOverflow = body.style.overflow;
+    const savedBodyPosition = body.style.position;
+    const savedBodyTop = body.style.top;
+    const savedBodyLeft = body.style.left;
+    const savedBodyRight = body.style.right;
+    const savedBodyWidth = body.style.width;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
 
     indicativosDL.innerHTML = INDICATIVOS.map(v => `<option value="${v}">`).join("");
     clase.innerHTML = '<option value="">Seleccione</option>' + CLASES_ACTUACION.map(v => `<option>${v}</option>`).join("");
 
-    const draft = (function(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch(_) { return {}; } })();
     const existing = existingData();
 
     const form = {
-      unidadGrupo: draft.unidadGrupo || existing.unidadGrupo || "BLSC",
-      indicativos: Array.isArray(draft.indicativos)
-        ? draft.indicativos
-        : (Array.isArray(existing.indicativos)
-            ? existing.indicativos
-            : (existing.indicativo ? [existing.indicativo] : [])),
-      agentesTxt: (draft.agentes || existing.agentes || []).join(", "),
-      fechaInicio: draft.fechaInicio || existing.fechaInicio || toDDMMYYYY(nowDateISO()),
-      horaInicio: draft.horaInicio || existing.horaInicio || nowTimeHHMM(),
-      datosActuacion: draft.datosActuacion || existing.datosActuacion || "",
-      claseActuacion: draft.claseActuacion || existing.claseActuacion || "",
-      tipoHecho: draft.tipoHecho || existing.tipoHecho || "",
-      naturalezaLugar: draft.naturalezaLugar || existing.naturalezaLugar || "Vía publica urbana",
-      municipio: draft.municipio || existing.municipio || "",
-      calleInput: draft.calleInput || "",
-      selectedStreet: draft.selectedStreet || null
+      unidadGrupo: existing.unidadGrupo || "BLSC",
+      indicativos: Array.isArray(existing.indicativos)
+        ? existing.indicativos
+        : normalizeIndicativos(existing.indicativo),
+      agentesTxt: (existing.agentes || []).join(", "),
+      fechaInicio: existing.fechaInicio || toDDMMYYYY(nowDateISO()),
+      horaInicio: existing.horaInicio || nowTimeHHMM(),
+      datosActuacion: existing.datosActuacion || "",
+      claseActuacion: existing.claseActuacion || "",
+      tipoHecho: existing.tipoHecho || "",
+      naturalezaLugar: existing.naturalezaLugar || "Vía publica urbana",
+      municipio: existing.municipio || "",
+      calleInput: "",
+      selectedStreet: null
     };
 
     $("#cbmUnidad").value = form.unidadGrupo || "BLSC";
@@ -312,8 +321,6 @@
       };
     }
 
-    function saveDraft(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(read())); }
-
     function validate(data){
       if (data.detenidoSinParteIntervencion) return "";
       if (!data.unidadGrupo) return "Falta Unidad o grupo.";
@@ -381,17 +388,23 @@
 
     function close(ok){
       ov.classList.remove("open");
+      root.style.overflow = savedRootOverflow;
+      body.style.overflow = savedBodyOverflow;
+      body.style.position = savedBodyPosition;
+      body.style.top = savedBodyTop;
+      body.style.left = savedBodyLeft;
+      body.style.right = savedBodyRight;
+      body.style.width = savedBodyWidth;
+      window.scrollTo(0, scrollY);
       setTimeout(() => ov.remove(), 120);
       if (!ok) onDone(null);
     }
 
     $("#cbmCancel").onclick = () => close(false);
-    $("#cbmSave").onclick = () => { saveDraft(); err.textContent = "Borrador guardado."; };
     $("#cbmConfirm").onclick = () => {
       const data = read();
       const msg = validate(data);
       if (msg){ err.textContent = msg; return; }
-      saveDraft();
       const bundle = buildBundle(mode);
       close(true);
       onDone(bundle);
@@ -402,6 +415,30 @@
       ov.querySelectorAll("[data-sec='base'] .cbm-in,[data-sec='base'] .cbm-sel,[data-sec='base'] .cbm-ta").forEach(el => { el.disabled = disabled; });
       err.textContent = disabled ? "Modo rápido activo: se enviarán solo datos previos." : "";
     });
+
+    root.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+
+    let touchStartY = 0;
+    ov.addEventListener("wheel", (e) => {
+      if (!panel.contains(e.target)) e.preventDefault();
+    }, { passive: false });
+    ov.addEventListener("touchstart", (e) => {
+      touchStartY = e.touches && e.touches[0] ? e.touches[0].clientY : 0;
+    }, { passive: false });
+    ov.addEventListener("touchmove", (e) => {
+      if (!panel.contains(e.target)) { e.preventDefault(); return; }
+      const y = e.touches && e.touches[0] ? e.touches[0].clientY : 0;
+      const dy = y - touchStartY;
+      const atTop = panel.scrollTop <= 0;
+      const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1;
+      if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
+    }, { passive: false });
 
     ov.classList.add("open");
   }
