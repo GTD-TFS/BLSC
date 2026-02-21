@@ -602,16 +602,19 @@ function renderFiliaciones(obj){
     const summary = `${pickName(p)}${condicion ? ` · ${condicion}` : ""}`;
     return `
       <article class="fili-chip ${hasImg ? "hasImage" : ""}" data-fi="${i}">
-        <button type="button" class="fili-chip-body" data-edit="${i}" aria-label="Editar ${escapeHtml(title)}">
-          ${hasImg ? `<div class="fili-chip-thumb"><img src="${img}" alt="${escapeHtml(title)}"></div>` : ""}
-          <div class="fili-chip-main">
-            <div class="fili-chip-title">${escapeHtml(title)}</div>
-            <div class="fili-chip-sub">${escapeHtml(summary)}</div>
+        <div class="fili-chip-row">
+          <button type="button" class="fili-chip-body" data-edit="${i}" aria-label="Editar ${escapeHtml(title)}">
+            ${hasImg ? `<div class="fili-chip-thumb"><img src="${img}" alt="${escapeHtml(title)}"></div>` : ""}
+            <div class="fili-chip-main">
+              <div class="fili-chip-title">${escapeHtml(title)}</div>
+              <div class="fili-chip-sub">${escapeHtml(summary)}</div>
+            </div>
+          </button>
+          <div class="fili-chip-actions right">
+            ${hasImg ? `<button type="button" class="btnmini" data-save-img="${i}" title="Descargar foto">↧</button>` : ``}
+            ${hasImg ? `<button type="button" class="btnmini" data-del-img="${i}" title="Eliminar foto y filiación">✕</button>` : ``}
+            ${(p && p.__manual) ? `<button type="button" class="btnmini" data-del-fi="${i}" title="Eliminar filiación">✕</button>` : ``}
           </div>
-        </button>
-        <div class="fili-chip-actions">
-          ${hasImg ? `<button type="button" class="btnmini" data-view="${i}">Ver imagen</button>` : ``}
-          ${(p && p.__manual) ? `<button type="button" class="btnmini" data-del-fi="${i}">Eliminar</button>` : ``}
         </div>
       </article>
     `;
@@ -628,11 +631,44 @@ function renderFiliaciones(obj){
     });
   });
 
-  // Botón ver imagen -> overlay
-  el.filiacionesOut.querySelectorAll('button[data-view]').forEach(b => {
+  // Descargar foto desde chip
+  el.filiacionesOut.querySelectorAll('button[data-save-img]').forEach(b => {
+    b.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const fi = Number(b.getAttribute('data-save-img'));
+      const idx = Array.isArray(state.images) ? state.images.findIndex(im => Number(im?.fi) === fi) : -1;
+      if (idx < 0) return;
+      try{
+        await shareOrDownloadImage(idx);
+      }catch(_){}
+    });
+  });
+
+  // Eliminar foto + filiación desde chip
+  el.filiacionesOut.querySelectorAll('button[data-del-img]').forEach(b => {
     b.addEventListener('click', () => {
-      const i = Number(b.getAttribute('data-view'));
-      openFiliacionOverlay(i);
+      const i = Number(b.getAttribute('data-del-img'));
+      const ok = confirm(`¿Eliminar la filiación ${i+1}?`);
+      if (!ok) return;
+
+      const imgIdx = Array.isArray(state.images) ? state.images.findIndex(im => Number(im?.fi) === i) : -1;
+      const removedFi = i;
+      if (imgIdx >= 0) state.images.splice(imgIdx, 1);
+
+      if (Array.isArray(state.lastJson?.filiaciones) && state.lastJson.filiaciones.length > removedFi){
+        state.lastJson.filiaciones.splice(removedFi, 1);
+      }
+      if (Array.isArray(state.aiJson?.filiaciones) && state.aiJson.filiaciones.length > removedFi){
+        state.aiJson.filiaciones.splice(removedFi, 1);
+      }
+      for (const im of (state.images || [])){
+        const f = Number(im?.fi);
+        if (Number.isFinite(f) && f > removedFi) { im.fi = f - 1; im.name = `Filiación ${im.fi+1}`; }
+      }
+      try{ shiftThumbOverridesAfterRemoval(removedFi); }catch(_){}
+      renderThumbs();
+      renderFiliaciones(state.lastJson);
+      setExportEnabled(!!state.lastJson);
     });
   });
 
