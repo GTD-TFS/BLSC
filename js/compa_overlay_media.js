@@ -398,9 +398,9 @@ function openFiliacionOverlay(i){
     { key:"Nombre de los Padres", label:"Nombre de los Padres" },
     { key:"Domicilio", label:"Domicilio" },
     { key:"Teléfono", label:"Teléfono" },
-    { key:"idComprobada", label:"Identidad comprobada", type:"select", options:["Si","No"], defaultValue:"Si" },
-    { key:"cacheo", label:"Cacheo", type:"select", options:["Ninguno","Cacheo superficial","Registro corporal externo","Desnudo integral"], defaultValue:"Ninguno" },
-    { key:"idSituacionEsp", label:"Situación en España", type:"select", options:["Ilegal","Legal","Se desconoce"], defaultValue:"Legal" }
+    { key:"idComprobada", label:"Identidad comprobada", type:"select", options:["","Si","No"], defaultValue:"Si" },
+    { key:"cacheo", label:"Cacheo", type:"select", options:["","Ninguno","Cacheo superficial","Registro corporal externo","Desnudo integral"], defaultValue:"Ninguno" },
+    { key:"idSituacionEsp", label:"Situación en España", type:"select", options:["","Ilegal","Legal","Se desconoce"], defaultValue:"Legal" }
   ];
 
   if (p && typeof p === "object"){
@@ -424,7 +424,11 @@ function openFiliacionOverlay(i){
             <label for="${escapeHtml(id)}">${escapeHtml(label)}</label>
             ${field.type === "select" ? `
               <select id="${escapeHtml(id)}" data-ov-fi="${i}" data-ov-k="${escapeHtml(k)}">
-                ${(field.options || []).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt || "Seleccione")}</option>`).join("")}
+                ${(field.options || []).map(opt => {
+                  const isEmpty = String(opt || "") === "";
+                  const placeholder = (k === "idComprobada" || k === "cacheo") ? "Seleccione una acción" : "Seleccione";
+                  return `<option value="${escapeHtml(opt)}">${escapeHtml(isEmpty ? placeholder : opt)}</option>`;
+                }).join("")}
               </select>
             ` : `
               <input
