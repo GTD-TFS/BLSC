@@ -156,7 +156,6 @@ const ov = {
 let _overlayKbTrackingOn = false;
 let _overlayBaseViewportHeight = 0;
 let _overlayFocusPatchBound = false;
-let _overlayScrollRailBound = false;
 
 function setOverlayMode(hasImage){
   if (!ov.root) return;
@@ -238,55 +237,6 @@ function bindOverlayFocusPatch(){
   }, { passive:true });
 }
 
-function bindOverlayScrollRail(){
-  if (_overlayScrollRailBound) return;
-  const formWrap = ov.root?.querySelector?.('.formwrap');
-  const rail = document.getElementById('ovScrollRail');
-  const thumb = document.getElementById('ovScrollThumb');
-  if (!formWrap || !rail || !thumb) return;
-  _overlayScrollRailBound = true;
-
-  const refresh = () => {
-    const max = Math.max(0, formWrap.scrollHeight - formWrap.clientHeight);
-    const ratio = max > 0 ? (formWrap.scrollTop / max) : 0;
-    const trackH = Math.max(1, rail.clientHeight);
-    const thumbH = Math.max(38, Math.round(trackH * Math.min(0.5, formWrap.clientHeight / Math.max(formWrap.scrollHeight, 1))));
-    thumb.style.height = `${thumbH}px`;
-    thumb.style.top = `${Math.round((trackH - thumbH) * ratio)}px`;
-    rail.classList.toggle('active', max > 0);
-  };
-
-  const setByClientY = (clientY) => {
-    const rect = rail.getBoundingClientRect();
-    const trackH = Math.max(1, rect.height);
-    const thumbH = Math.max(38, thumb.offsetHeight || 38);
-    const y = Math.max(0, Math.min(trackH - thumbH, clientY - rect.top - thumbH / 2));
-    const ratio = (trackH - thumbH) > 0 ? (y / (trackH - thumbH)) : 0;
-    const max = Math.max(0, formWrap.scrollHeight - formWrap.clientHeight);
-    formWrap.scrollTop = Math.round(max * ratio);
-    refresh();
-  };
-
-  let dragging = false;
-  rail.addEventListener('pointerdown', (ev) => {
-    dragging = true;
-    rail.setPointerCapture?.(ev.pointerId);
-    setByClientY(ev.clientY);
-    ev.preventDefault();
-  }, { passive:false });
-  rail.addEventListener('pointermove', (ev) => {
-    if (!dragging) return;
-    setByClientY(ev.clientY);
-    ev.preventDefault();
-  }, { passive:false });
-  rail.addEventListener('pointerup', () => { dragging = false; });
-  rail.addEventListener('pointercancel', () => { dragging = false; });
-
-  formWrap.addEventListener('scroll', refresh, { passive:true });
-  window.addEventListener('resize', refresh, { passive:true });
-  refresh();
-}
-
 // ---- Pinch-zoom dentro del área superior (no ocupa más espacio) ----
 const zoom = {
   active: false,
@@ -328,6 +278,25 @@ function applyOverlayZoom(){
   zoom.y = _clamp(zoom.y, -maxY, maxY);
 
   ov.img.style.transform = `translate3d(${zoom.x}px,${zoom.y}px,0) rotate(${zoom.rot}deg) scale(${zoom.scale})`;
+}
+
+function getAutoRotateScale(){
+  if (!ov.img) return 1;
+  const wrap = ov.img.closest('.imgwrap');
+  if (!wrap) return 1;
+  const wr = wrap.getBoundingClientRect();
+  const w = Math.max(1, wr.width);
+  const h = Math.max(1, wr.height);
+  const iw = Math.max(1, ov.img.naturalWidth || w);
+  const ih = Math.max(1, ov.img.naturalHeight || h);
+  const sContain = Math.min(w / iw, h / ih);
+  const dispW = iw * sContain;
+  const dispH = ih * sContain;
+  const quarterTurn = Math.abs(zoom.rot % 180) === 90;
+  if (!quarterTurn) return 1;
+  const rotW = dispH;
+  const rotH = dispW;
+  return _clamp(Math.max(w / rotW, h / rotH), 1, 4);
 }
 
 function setupOverlayZoom(){
@@ -490,7 +459,6 @@ function openFiliacionOverlay(i){
 
   lockBodyScroll();
   bindOverlayFocusPatch();
-  bindOverlayScrollRail();
   setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
@@ -514,6 +482,9 @@ function closeFiliacionOverlay(){
   ov.img.src = '';
   ov.img.style.display = 'block';
   ov.form.innerHTML = '';
+  if (state.lastJson){
+    try{ renderFiliaciones(state.lastJson); }catch(_){}
+  }
 }
 function openThumbOverlay(i){
   const img64 = getImgBase64ByFi(i) || "";
@@ -598,7 +569,6 @@ function openThumbOverlay(i){
 
   lockBodyScroll();
   bindOverlayFocusPatch();
-  bindOverlayScrollRail();
   setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
@@ -615,6 +585,9 @@ if (ov.closeTop){
 if (ov.rotate){
   ov.rotate.addEventListener('click', () => {
     zoom.rot = ((zoom.rot - 90) % 360 + 360) % 360;
+    zoom.x = 0;
+    zoom.y = 0;
+    zoom.scale = getAutoRotateScale();
     applyOverlayZoom();
   });
 }
