@@ -40,7 +40,7 @@
   </script>
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="compa.css?v=20">
+  <link rel="stylesheet" href="compa.css?v=21">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -143,7 +143,8 @@
 </div>
     </div>
   <div class="card" id="bottomDock">
-    <div class="emoji-row two">
+    <div class="emoji-row">
+      <button id="btnDescargar" type="button">↓</button>
       <button id="btnCloud" type="button">☁️</button>
       <button id="btnLimpiar" type="button">⟳</button>
     </div>
@@ -659,7 +660,6 @@ function renderFiliaciones(obj){
             </div>
           </button>
           <div class="fili-chip-actions right">
-            ${hasImg ? `<button type="button" class="btnmini" data-save-img="${i}" title="Descargar foto">↧</button>` : ``}
             ${hasImg ? `<button type="button" class="btnmini" data-del-img="${i}" title="Eliminar foto y filiación">✕</button>` : ``}
             ${(p && p.__manual) ? `<button type="button" class="btnmini" data-del-fi="${i}" title="Eliminar filiación">✕</button>` : ``}
           </div>
@@ -676,22 +676,6 @@ function renderFiliaciones(obj){
     b.addEventListener('click', () => {
       const i = Number(b.getAttribute('data-edit'));
       openFiliacionOverlay(i);
-    });
-  });
-
-  // Descargar foto desde chip
-  el.filiacionesOut.querySelectorAll('button[data-save-img]').forEach(b => {
-    b.addEventListener('click', async (ev) => {
-      ev.stopPropagation();
-      const fi = Number(b.getAttribute('data-save-img'));
-      const idx = resolveImageIndexByFi(fi);
-      if (idx < 0){
-        alert('No se encontró una imagen válida para guardar.');
-        return;
-      }
-      try{
-        await shareOrDownloadImage(idx);
-      }catch(_){}
     });
   });
 
@@ -1360,8 +1344,8 @@ bootstrapAuthGate();
 <script src="municipios.js"></script>
 <script src="js/compa_crypto_resize.js?v=1"></script>
 <script src="js/filiaciones_ui.js?v=4"></script>
-<script src="js/compa_overlay_media.js?v=9"></script>
+<script src="js/compa_overlay_media.js?v=10"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
-<script src="js/denupol_modal_bundle.js?v=8"></script>
+<script src="js/denupol_modal_bundle.js?v=9"></script>
 </body>
 </html>
