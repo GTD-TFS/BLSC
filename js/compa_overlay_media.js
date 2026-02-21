@@ -386,32 +386,45 @@ function openFiliacionOverlay(i){
   setupOverlayZoom();
 
   const schema = [
-    "Condición",
-    "Nombre","Apellidos","Tipo de documento","Nº Documento","Sexo",
-    "Nacionalidad","Fecha de nacimiento","Lugar de nacimiento",
-    "Nombre de los Padres","Domicilio","Teléfono"
+    { key:"Condición", label:"Condición", type:"select", options:["","Perjudicado","Testigo","Víctima","Requirente","Denunciado","Identificado","Infractor"], defaultValue:"" },
+    { key:"Nombre", label:"Nombre" },
+    { key:"Apellidos", label:"Apellidos" },
+    { key:"Tipo de documento", label:"Tipo de documento" },
+    { key:"Nº Documento", label:"Nº Documento" },
+    { key:"Sexo", label:"Sexo" },
+    { key:"Nacionalidad", label:"Nacionalidad" },
+    { key:"Fecha de nacimiento", label:"Fecha de nacimiento" },
+    { key:"Lugar de nacimiento", label:"Lugar de nacimiento" },
+    { key:"Nombre de los Padres", label:"Nombre de los Padres" },
+    { key:"Domicilio", label:"Domicilio" },
+    { key:"Teléfono", label:"Teléfono" },
+    { key:"idComprobada", label:"Identidad comprobada", type:"select", options:["Si","No"], defaultValue:"Si" },
+    { key:"cacheo", label:"Cacheo", type:"select", options:["Ninguno","Cacheo superficial","Registro corporal externo","Desnudo integral"], defaultValue:"Ninguno" },
+    { key:"idSituacionEsp", label:"Situación en España", type:"select", options:["Ilegal","Legal","Se desconoce"], defaultValue:"Legal" }
   ];
+
+  if (p && typeof p === "object"){
+    if (!String(p.idComprobada || "").trim()) p.idComprobada = "Si";
+    if (!String(p.cacheo || "").trim()) p.cacheo = "Ninguno";
+    if (!String(p.idSituacionEsp || "").trim()) p.idSituacionEsp = "Legal";
+  }
 
   ov.form.innerHTML = `
     <div class="fili-grid">
-      ${schema.map(k => {
-        const v = (p && typeof p === 'object' && typeof p[k] === 'string') ? p[k] : '';
+      ${schema.map(field => {
+        const k = field.key;
+        const label = field.label || field.key;
+        const v0 = (p && typeof p === 'object' && typeof p[k] === 'string') ? p[k] : '';
+        const v = String(v0 || field.defaultValue || "");
         const id = `ov_${i}_${k.replaceAll(' ','_').replaceAll('º','o').replaceAll('/','_')}`;
         const isGuided = (k === "Lugar de nacimiento" || k === "Domicilio");
         const isBirth = (k === "Fecha de nacimiento");
         return `
           <div class="${isGuided ? "ov-guided-field" : ""}">
-            <label for="${escapeHtml(id)}">${escapeHtml(k)}</label>
-            ${k === "Condición" ? `
-              <select id="${escapeHtml(id)}" data-ov-fi="${i}" data-ov-k="Condición">
-                <option value=""></option>
-                <option value="Perjudicado">Perjudicado</option>
-                <option value="Testigo">Testigo</option>
-                <option value="Víctima">Víctima</option>
-                <option value="Requirente">Requirente</option>
-                <option value="Denunciado">Denunciado</option>
-                <option value="Identificado">Identificado</option>
-                <option value="Infractor">Infractor</option>
+            <label for="${escapeHtml(id)}">${escapeHtml(label)}</label>
+            ${field.type === "select" ? `
+              <select id="${escapeHtml(id)}" data-ov-fi="${i}" data-ov-k="${escapeHtml(k)}">
+                ${(field.options || []).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt || "Seleccione")}</option>`).join("")}
               </select>
             ` : `
               <input
@@ -460,11 +473,12 @@ function openFiliacionOverlay(i){
     formatBirth();
   });
 
-  // Sincroniza el valor del select Condición tras render del overlay
-  ov.form.querySelectorAll('select[data-ov-fi][data-ov-k="Condición"]').forEach(sel => {
+  // Sincroniza valores de selects tras render del overlay
+  ov.form.querySelectorAll('select[data-ov-fi][data-ov-k]').forEach(sel => {
     const fi = Number(sel.getAttribute('data-ov-fi'));
+    const k = sel.getAttribute('data-ov-k');
     const cur = (state.lastJson?.filiaciones?.[fi] && typeof state.lastJson.filiaciones[fi] === 'object')
-      ? (state.lastJson.filiaciones[fi]["Condición"] || "")
+      ? (state.lastJson.filiaciones[fi][k] || "")
       : "";
     sel.value = String(cur || "");
   });
@@ -754,7 +768,8 @@ state.images.push({ fi, name: `Filiación ${fi+1}`, ...out, captured: false });
           "Condición":"",
           "Nombre":"","Apellidos":"","Tipo de documento":"","Nº Documento":"","Sexo":"",
           "Nacionalidad":"","Fecha de nacimiento":"","Lugar de nacimiento":"",
-          "Nombre de los Padres":"","Domicilio":"","Teléfono":""
+          "Nombre de los Padres":"","Domicilio":"","Teléfono":"",
+          "idSituacionEsp":"Legal","idComprobada":"Si","cacheo":"Ninguno"
         });
         okCount++;
       }catch(errOne){

@@ -40,7 +40,7 @@
   </script>
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="compa.css?v=19">
+  <link rel="stylesheet" href="compa.css?v=20">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -113,7 +113,7 @@
 
 <div id="topDock">
   <div class="emoji-row">
-    <label for="f" class="filebtn">↑</label>
+    <label for="f" class="filebtn">◎</label>
     <button id="btnToggleFili" type="button">⊕<span id="filiCountBadge" aria-hidden="true"></span></button>
     <button id="btnToggleCompare" type="button">≣</button>
   </div>
@@ -143,8 +143,7 @@
 </div>
     </div>
   <div class="card" id="bottomDock">
-    <div class="emoji-row">
-      <button id="btnDescargar" type="button">↓</button>
+    <div class="emoji-row two">
       <button id="btnCloud" type="button">☁️</button>
       <button id="btnLimpiar" type="button">⟳</button>
     </div>
@@ -1163,7 +1162,8 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
     "Condición",
     "Nombre","Apellidos","Tipo de documento","Nº Documento","Sexo",
     "Nacionalidad","Fecha de nacimiento","Lugar de nacimiento",
-    "Nombre de los Padres","Domicilio","Teléfono"
+    "Nombre de los Padres","Domicilio","Teléfono",
+    "idSituacionEsp","idComprobada","cacheo"
   ];
 
   function ensureLastJson(){
@@ -1174,6 +1174,9 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
   function blankFili(){
     const it = {};
     for (const k of schema_keys) it[k] = "";
+    it["idSituacionEsp"] = "Legal";
+    it["idComprobada"] = "Si";
+    it["cacheo"] = "Ninguno";
     // Marca interna: es una filiación creada a mano (NO debe intentar vincularse a imagen por índice)
     // No debe salir en el JSON exportado.
     try{
@@ -1242,7 +1245,7 @@ if (btnChatGPT){
 }
 
 /* ========= Export encriptado (wrapper CompaCifrado) ========= */
-el.btnDescargar.onclick = async () => {
+if (el.btnDescargar) el.btnDescargar.onclick = async () => {
   if (!state.lastJson) return;
   if (!window.CompaCifrado?.wrapEncryptedJSON) {
     setStatus('Falta cifrado_descarga.js', 'err');
@@ -1357,8 +1360,8 @@ bootstrapAuthGate();
 <script src="municipios.js"></script>
 <script src="js/compa_crypto_resize.js?v=1"></script>
 <script src="js/filiaciones_ui.js?v=4"></script>
-<script src="js/compa_overlay_media.js?v=8"></script>
+<script src="js/compa_overlay_media.js?v=9"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
-<script src="js/denupol_modal_bundle.js?v=7"></script>
+<script src="js/denupol_modal_bundle.js?v=8"></script>
 </body>
 </html>
