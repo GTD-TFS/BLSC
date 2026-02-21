@@ -579,76 +579,53 @@ function renderFiliaciones(obj){
     state.lastJson.filiaciones = JSON.parse(JSON.stringify(arr));
   }
 
-  const schema = [
-    "Condición",
-    "Nombre","Apellidos","Tipo de documento","Nº Documento","Sexo",
-    "Nacionalidad","Fecha de nacimiento","Lugar de nacimiento",
-    "Nombre de los Padres","Domicilio","Teléfono"
-  ];
-
   const safeImg = (fi) => {
     const nfi = Number(fi);
     const it = Array.isArray(state.images)
       ? state.images.find(im => Number(im?.fi) === nfi)
       : null;
-return (it?.base64 || "");
+    return (it?.base64 || "");
+  };
+
+  const pickName = (p) => {
+    const n = String(p?.["Nombre"] || "").trim();
+    const a = String(p?.["Apellidos"] || "").trim();
+    const full = `${n} ${a}`.trim();
+    return full || "Sin nombre";
   };
 
   const cardHtml = (p, i) => {
+    const img = safeImg(i);
+    const hasImg = !!img;
     const title = `Filiación ${i+1}`;
+    const condicion = String(p?.["Condición"] || "").trim();
+    const summary = `${pickName(p)}${condicion ? ` · ${condicion}` : ""}`;
     return `
-      <div class="fili-card" data-fi="${i}">
-        <div class="fili-head">
-          <div class="fili-title">${escapeHtml(title)}</div>
-          <div class="fili-actions">
-           ${ (p && p.__manual)
-  ? `<button type="button" class="btnmini" data-del-fi="${i}">Eliminar</button>`
-  : ( safeImg(i)
-      ? `<button type="button" class="btnmini" data-view="${i}">Ver imagen</button>`
-      : ``
-    )
-}
+      <article class="fili-chip ${hasImg ? "hasImage" : ""}" data-fi="${i}">
+        <button type="button" class="fili-chip-body" data-edit="${i}" aria-label="Editar ${escapeHtml(title)}">
+          ${hasImg ? `<div class="fili-chip-thumb"><img src="${img}" alt="${escapeHtml(title)}"></div>` : ""}
+          <div class="fili-chip-main">
+            <div class="fili-chip-title">${escapeHtml(title)}</div>
+            <div class="fili-chip-sub">${escapeHtml(summary)}</div>
           </div>
+        </button>
+        <div class="fili-chip-actions">
+          ${hasImg ? `<button type="button" class="btnmini" data-view="${i}">Ver imagen</button>` : ``}
+          ${(p && p.__manual) ? `<button type="button" class="btnmini" data-del-fi="${i}">Eliminar</button>` : ``}
         </div>
-        <div class="fili-grid">
-          ${schema.map(k => {
-            const v = (p && typeof p === "object" && typeof p[k] === "string") ? p[k] : "";
-            const id = `fi_${i}_${k.replaceAll(' ','_').replaceAll('º','o').replaceAll('/','_')}`;
-            return `
-              <div>
-                <label for="${escapeHtml(id)}">${escapeHtml(k)}</label>
-                ${k === "Condición" ? `
-                  <select id="${escapeHtml(id)}" data-fi="${i}" data-k="Condición">
-                    <option value=""></option>
-                    <option value="Perjudicado">Perjudicado</option>
-                    <option value="Testigo">Testigo</option>
-                    <option value="Víctima">Víctima</option>
-                    <option value="Requirente">Requirente</option>
-                    <option value="Denunciado">Denunciado</option>
-                    <option value="Identificado">Identificado</option>
-                    <option value="Infractor">Infractor</option>
-                  </select>
-                ` : `
-                  <input id="${escapeHtml(id)}" data-fi="${i}" data-k="${escapeHtml(k)}" value="${escapeHtml(v)}" />
-                `}
-              </div>
-            `;
-          }).join("")}
-        </div>
-      </div>
+      </article>
     `;
   };
 
   el.filiacionesOut.innerHTML = arr.map((p,i)=>cardHtml(p,i)).join("");
   updateFiliUI();
-  // Delegación: imprescindible porque filiaciones_ui.js puede reemplazar inputs por selects
-  ensureFiliDelegation();
 
-  // Sincroniza el valor del select Condición tras render
-  el.filiacionesOut.querySelectorAll('select[data-fi][data-k="Condición"]').forEach(sel => {
-    const i = Number(sel.getAttribute('data-fi'));
-    const cur = (arr[i] && typeof arr[i] === 'object') ? (arr[i]["Condición"] || "") : "";
-    sel.value = String(cur || "");
+  // Click en cuerpo del chip -> editor fullscreen de filiación
+  el.filiacionesOut.querySelectorAll('button[data-edit]').forEach(b => {
+    b.addEventListener('click', () => {
+      const i = Number(b.getAttribute('data-edit'));
+      openFiliacionOverlay(i);
+    });
   });
 
   // Botón ver imagen -> overlay
