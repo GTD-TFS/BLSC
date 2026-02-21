@@ -40,7 +40,7 @@
   </script>
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="compa.css?v=12">
+  <link rel="stylesheet" href="compa.css?v=13">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -121,7 +121,7 @@
 
 <div class="row">
   <div class="card" id="mainCard">
-      <div id="thumbs" class="grid"></div>
+      <div id="thumbs" class="grid" hidden></div>
 
 <!-- Filiaciones (debajo de las fotos) -->
 <div id="filiWrap">
@@ -163,7 +163,7 @@
     </div>
     <div class="formwrap">
       <div id="ovForm"></div>
-
+      <div id="ovScrollRail" aria-hidden="true"><i id="ovScrollThumb"></i></div>
     </div>
     <button id="ovClose" type="button">Cerrar</button>
   </div>
@@ -360,13 +360,62 @@ el.jobCancel  = document.getElementById('jobCancel');
 function updateFiliCountBadge(){
   const b = el.filiCountBadge;
   if (!b) return;
-  const n = Array.isArray(state?.lastJson?.filiaciones) ? state.lastJson.filiaciones.length : 0;
+  const n = getFiliCount();
   b.textContent = n ? String(n) : "";
   b.style.display = n ? "inline-flex" : "none";
 }
 
 function getFiliCount(){
-  return Array.isArray(state?.lastJson?.filiaciones) ? state.lastJson.filiaciones.length : 0;
+  const arr = Array.isArray(state?.lastJson?.filiaciones) ? state.lastJson.filiaciones : [];
+  return arr.reduce((acc, it) => acc + ((it && typeof it === "object") ? 1 : 0), 0);
+}
+
+function compactFiliacionesState(){
+  const arr = Array.isArray(state?.lastJson?.filiaciones) ? state.lastJson.filiaciones : null;
+  if (!arr) return;
+
+  const dense = [];
+  const mapOldToNew = new Map();
+  for (let i = 0; i < arr.length; i++){
+    const it = arr[i];
+    if (!it || typeof it !== "object") continue;
+    mapOldToNew.set(i, dense.length);
+    dense.push(it);
+  }
+  if (dense.length === arr.length) return;
+
+  state.lastJson.filiaciones = dense;
+
+  if (Array.isArray(state?.aiJson?.filiaciones)){
+    const aiDense = [];
+    for (let i = 0; i < state.aiJson.filiaciones.length; i++){
+      if (!mapOldToNew.has(i)) continue;
+      aiDense.push(state.aiJson.filiaciones[i]);
+    }
+    state.aiJson.filiaciones = aiDense;
+  }
+
+  if (Array.isArray(state.images)){
+    state.images = state.images.filter(im => mapOldToNew.has(Number(im?.fi)));
+    for (const im of state.images){
+      const oldFi = Number(im?.fi);
+      const newFi = mapOldToNew.get(oldFi);
+      if (typeof newFi === "number"){
+        im.fi = newFi;
+        im.name = `Filiación ${newFi + 1}`;
+      }
+    }
+  }
+
+  if (state.thumbOverrides && typeof state.thumbOverrides === "object"){
+    const next = {};
+    for (const [oldK, v] of Object.entries(state.thumbOverrides)){
+      const oldI = Number(oldK);
+      const newI = mapOldToNew.get(oldI);
+      if (typeof newI === "number") next[String(newI)] = v;
+    }
+    state.thumbOverrides = next;
+  }
 }
 
 function updateFiliUI(){
@@ -561,6 +610,7 @@ function applyThumbOverrides(){
 
 
 function renderFiliaciones(obj){
+  compactFiliacionesState();
   const arr = obj?.filiaciones || obj?.filiaciones_incorporadas || obj?.filiacion || [];
   if (!Array.isArray(arr) || arr.length === 0){
     // Sin fichas: no debe verse ningún contenedor vacío
@@ -1012,7 +1062,7 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
   }
 
   function scrollToFirstFili(){
-    const firstFili = document.querySelector('.fili-card');
+    const firstFili = document.querySelector('.fili-chip');
     if (firstFili) {
       scrollToEl(firstFili);
       return;
@@ -1089,7 +1139,7 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
     setExportEnabled(true);
 
     try{
-      const cards = document.querySelectorAll('.fili-card');
+      const cards = document.querySelectorAll('.fili-chip');
       cards[cards.length - 1]?.scrollIntoView?.({behavior:'smooth', block:'start'});
     }catch{}
   });
@@ -1252,7 +1302,7 @@ bootstrapAuthGate();
 <script src="municipios.js"></script>
 <script src="js/compa_crypto_resize.js?v=1"></script>
 <script src="js/filiaciones_ui.js?v=4"></script>
-<script src="js/compa_overlay_media.js?v=2"></script>
+<script src="js/compa_overlay_media.js?v=3"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
 <script src="js/denupol_modal_bundle.js?v=4"></script>
 </body>

@@ -142,8 +142,7 @@ function getImgBase64ByFi(fi){
     ? state.images.find(im => Number(im?.fi) === nfi && im?.base64)
     : null;
   if (hit && hit.base64) return hit.base64;
-  // Fallback: índice directo (solo funciona si array está alineado)
-  return (state?.images?.[nfi]?.base64) || "";
+  return "";
 }
 const ov = {
   root: document.getElementById('imgOverlay'),
@@ -157,6 +156,13 @@ const ov = {
 let _overlayKbTrackingOn = false;
 let _overlayBaseViewportHeight = 0;
 let _overlayFocusPatchBound = false;
+let _overlayScrollRailBound = false;
+
+function setOverlayMode(hasImage){
+  if (!ov.root) return;
+  ov.root.classList.toggle('mode-with-image', !!hasImage);
+  ov.root.classList.toggle('mode-no-image', !hasImage);
+}
 
 function setOverlayStaticLayoutVars(){
   if (!ov.root) return;
@@ -203,17 +209,82 @@ function bindOverlayFocusPatch(){
   if (!ov.form || _overlayFocusPatchBound) return;
   _overlayFocusPatchBound = true;
 
-  // iOS Safari tiende a desplazar toda la vista al enfocar inputs.
-  // Forzamos focus local sin scroll global.
+  // Si el toque realmente era scroll, no forzamos foco.
   ov.form.addEventListener('touchstart', (ev) => {
     const t = ev.target;
     if (!(t instanceof HTMLElement)) return;
     if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
+    t.dataset.ovTouchMaybeFocus = '1';
+    t.dataset.ovTouchY = String(ev.touches?.[0]?.clientY ?? 0);
+  }, { passive:true });
+
+  ov.form.addEventListener('touchmove', (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLElement)) return;
+    if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
+    const y0 = Number(t.dataset.ovTouchY || '0');
+    const y1 = Number(ev.touches?.[0]?.clientY ?? 0);
+    if (Math.abs(y1 - y0) > 8) t.dataset.ovTouchMaybeFocus = '0';
+  }, { passive:true });
+
+  ov.form.addEventListener('touchend', (ev) => {
+    const t = ev.target;
+    if (!(t instanceof HTMLElement)) return;
+    if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
+    if (t.dataset.ovTouchMaybeFocus !== '1') return;
     if (document.activeElement === t) return;
-    ev.preventDefault();
     try{ t.focus({ preventScroll:true }); }
     catch(_){ try{ t.focus(); }catch(__){} }
+  }, { passive:true });
+}
+
+function bindOverlayScrollRail(){
+  if (_overlayScrollRailBound) return;
+  const formWrap = ov.root?.querySelector?.('.formwrap');
+  const rail = document.getElementById('ovScrollRail');
+  const thumb = document.getElementById('ovScrollThumb');
+  if (!formWrap || !rail || !thumb) return;
+  _overlayScrollRailBound = true;
+
+  const refresh = () => {
+    const max = Math.max(0, formWrap.scrollHeight - formWrap.clientHeight);
+    const ratio = max > 0 ? (formWrap.scrollTop / max) : 0;
+    const trackH = Math.max(1, rail.clientHeight);
+    const thumbH = Math.max(38, Math.round(trackH * Math.min(0.5, formWrap.clientHeight / Math.max(formWrap.scrollHeight, 1))));
+    thumb.style.height = `${thumbH}px`;
+    thumb.style.top = `${Math.round((trackH - thumbH) * ratio)}px`;
+    rail.classList.toggle('active', max > 0);
+  };
+
+  const setByClientY = (clientY) => {
+    const rect = rail.getBoundingClientRect();
+    const trackH = Math.max(1, rect.height);
+    const thumbH = Math.max(38, thumb.offsetHeight || 38);
+    const y = Math.max(0, Math.min(trackH - thumbH, clientY - rect.top - thumbH / 2));
+    const ratio = (trackH - thumbH) > 0 ? (y / (trackH - thumbH)) : 0;
+    const max = Math.max(0, formWrap.scrollHeight - formWrap.clientHeight);
+    formWrap.scrollTop = Math.round(max * ratio);
+    refresh();
+  };
+
+  let dragging = false;
+  rail.addEventListener('pointerdown', (ev) => {
+    dragging = true;
+    rail.setPointerCapture?.(ev.pointerId);
+    setByClientY(ev.clientY);
+    ev.preventDefault();
   }, { passive:false });
+  rail.addEventListener('pointermove', (ev) => {
+    if (!dragging) return;
+    setByClientY(ev.clientY);
+    ev.preventDefault();
+  }, { passive:false });
+  rail.addEventListener('pointerup', () => { dragging = false; });
+  rail.addEventListener('pointercancel', () => { dragging = false; });
+
+  formWrap.addEventListener('scroll', refresh, { passive:true });
+  window.addEventListener('resize', refresh, { passive:true });
+  refresh();
 }
 
 // ---- Pinch-zoom dentro del área superior (no ocupa más espacio) ----
@@ -336,10 +407,12 @@ function setupOverlayZoom(){
 function openFiliacionOverlay(i){
   const p = (state.lastJson && Array.isArray(state.lastJson.filiaciones)) ? state.lastJson.filiaciones[i] : null;
   const img64 = getImgBase64ByFi(i) || "";
+  const hasImage = !!img64;
 
   ov.title.textContent = `Filiación ${i+1}`;
   ov.img.src = img64 || "";
-  ov.img.style.display = img64 ? "block" : "none";
+  ov.img.style.display = hasImage ? "block" : "none";
+  setOverlayMode(hasImage);
   resetOverlayZoom();
   setupOverlayZoom();
 
@@ -417,6 +490,7 @@ function openFiliacionOverlay(i){
 
   lockBodyScroll();
   bindOverlayFocusPatch();
+  bindOverlayScrollRail();
   setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');
@@ -429,6 +503,8 @@ function closeFiliacionOverlay(){
   unlockBodyScroll();
   _bindOverlayKeyboardTracking(false);
   ov.root.classList.remove('kb-open');
+  ov.root.classList.remove('mode-no-image');
+  ov.root.classList.remove('mode-with-image');
   ov.root.style.removeProperty('--kb');
   ov.root.style.removeProperty('--ov-h');
   ov.root.style.removeProperty('--ov-img-h');
@@ -446,6 +522,7 @@ function openThumbOverlay(i){
   ov.title.textContent = `Imagen ${i+1}`;
   ov.img.src = img64 || "";
   ov.img.style.display = img64 ? "block" : "none";
+  setOverlayMode(!!img64);
   resetOverlayZoom();
   setupOverlayZoom();
 
@@ -521,6 +598,7 @@ function openThumbOverlay(i){
 
   lockBodyScroll();
   bindOverlayFocusPatch();
+  bindOverlayScrollRail();
   setOverlayStaticLayoutVars();
   _bindOverlayKeyboardTracking(true);
   ov.root.classList.add('on');

@@ -217,7 +217,13 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(164px,1fr));gap:10px;margin-top:8px}
 #thumbs{
   display:none !important;
+  visibility:hidden !important;
+  height:0 !important;
+  max-height:0 !important;
+  overflow:hidden !important;
+  padding:0 !important;
   margin:0 !important;
+  border:0 !important;
 }
 
 input[type="file"].fileinput{
@@ -276,12 +282,13 @@ input[type="file"].fileinput{
   flex-direction:column;
   gap:10px;
   overflow-x:hidden;
-  overflow-y:auto;
+  overflow-y:visible;
   padding:4px 2px 8px;
   scroll-snap-type:none;
 }
 
 .fili-chip{
+  display:block;
   width:100%;
   border:1px solid var(--line);
   border-radius:16px;
@@ -295,14 +302,18 @@ input[type="file"].fileinput{
 }
 
 .fili-chip-row{
-  display:flex;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
   align-items:stretch;
-  gap:10px;
+  gap:8px;
   padding:10px;
+  width:100%;
 }
 
 .fili-chip-body{
-  flex:1 1 auto;
+  width:100%;
+  min-width:0;
+  margin:0;
   border:0 !important;
   background:transparent !important;
   display:flex;
@@ -356,10 +367,13 @@ input[type="file"].fileinput{
   display:flex;
   gap:8px;
   padding:0;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
 }
 
 .fili-chip-actions .btnmini{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   width:44px;
   min-width:44px;
   height:44px;
@@ -368,11 +382,12 @@ input[type="file"].fileinput{
 }
 
 .fili-chip-actions.right{
-  flex:0 0 auto;
   display:flex;
   flex-direction:column;
-  align-items:flex-end;
+  align-items:stretch;
   justify-content:center;
+  min-width:44px;
+  margin:0;
 }
 
 .emoji-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%;justify-items:center}
@@ -584,7 +599,7 @@ html.overlay-open{
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
   border-radius:26px 26px 0 0;
-  padding:12px 12px calc(22px + env(safe-area-inset-bottom));
+  padding:12px 28px calc(22px + env(safe-area-inset-bottom)) 12px;
   background:linear-gradient(165deg, rgba(241,245,251,.24), rgba(200,206,218,.2));
   border:1px solid var(--line-soft);
   backdrop-filter:blur(16px);
@@ -599,6 +614,43 @@ html.overlay-open{
 }
 #imgOverlay.kb-open .formwrap{
   top:220px;
+}
+
+#imgOverlay.mode-no-image .imgwrap{
+  display:none;
+}
+#imgOverlay.mode-no-image .formwrap{
+  top:64px;
+}
+#imgOverlay.mode-no-image.kb-open .formwrap{
+  top:64px;
+}
+
+#ovScrollRail{
+  position:absolute;
+  top:10px;
+  right:6px;
+  bottom:10px;
+  width:14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.2);
+  opacity:.35;
+  pointer-events:auto;
+  touch-action:none;
+}
+#ovScrollRail.active{
+  opacity:.8;
+}
+#ovScrollThumb{
+  position:absolute;
+  left:1px;
+  right:1px;
+  top:0;
+  height:38px;
+  border-radius:999px;
+  background:linear-gradient(180deg, rgba(149,200,255,.95), rgba(126,174,230,.95));
+  box-shadow:0 2px 8px rgba(0,0,0,.35);
 }
 
 #ovClose,#btnChatGPT,#jobCancel,#imgOverlay .topbar button{min-height:42px}
