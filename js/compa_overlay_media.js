@@ -171,7 +171,7 @@ function setOverlayStaticLayoutVars(){
     : Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
   _overlayBaseViewportHeight = Math.max(0, baseH);
   ov.root.style.setProperty('--ov-h', `${_overlayBaseViewportHeight}px`);
-  const imgH = Math.max(180, Math.round(_overlayBaseViewportHeight * 0.46));
+  const imgH = Math.max(170, Math.round(_overlayBaseViewportHeight * 0.42));
   ov.root.style.setProperty('--ov-img-h', `${imgH}px`);
 }
 
@@ -397,8 +397,10 @@ function openFiliacionOverlay(i){
       ${schema.map(k => {
         const v = (p && typeof p === 'object' && typeof p[k] === 'string') ? p[k] : '';
         const id = `ov_${i}_${k.replaceAll(' ','_').replaceAll('º','o').replaceAll('/','_')}`;
+        const isGuided = (k === "Lugar de nacimiento" || k === "Domicilio");
+        const isBirth = (k === "Fecha de nacimiento");
         return `
-          <div>
+          <div class="${isGuided ? "ov-guided-field" : ""}">
             <label for="${escapeHtml(id)}">${escapeHtml(k)}</label>
             ${k === "Condición" ? `
               <select id="${escapeHtml(id)}" data-ov-fi="${i}" data-ov-k="Condición">
@@ -412,8 +414,16 @@ function openFiliacionOverlay(i){
                 <option value="Infractor">Infractor</option>
               </select>
             ` : `
-              <input id="${escapeHtml(id)}" data-ov-fi="${i}" data-ov-k="${escapeHtml(k)}" value="${escapeHtml(v)}" />
+              <input
+                id="${escapeHtml(id)}"
+                data-ov-fi="${i}"
+                data-ov-k="${escapeHtml(k)}"
+                value="${escapeHtml(v)}"
+                ${isBirth ? `inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa"` : ``}
+                class="${isGuided ? "ov-readonly-input" : ""}"
+              />
             `}
+            ${isGuided ? `<span class="ov-edit-hint" aria-hidden="true">→ ✎</span>` : ``}
           </div>
         `;
       }).join('')}
@@ -435,6 +445,19 @@ function openFiliacionOverlay(i){
       const twin = document.querySelector(sel);
       if (twin && twin !== inp) twin.value = inp.value;
     });
+  });
+
+  // Fecha de nacimiento: máscara automática dd/mm/aaaa
+  ov.form.querySelectorAll('input[data-ov-k="Fecha de nacimiento"]').forEach(inp => {
+    const formatBirth = () => {
+      const digits = String(inp.value || "").replace(/\D+/g, "").slice(0, 8);
+      let out = digits;
+      if (digits.length > 2) out = `${digits.slice(0,2)}/${digits.slice(2)}`;
+      if (digits.length > 4) out = `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+      if (inp.value !== out) inp.value = out;
+    };
+    inp.addEventListener('input', formatBirth);
+    formatBirth();
   });
 
   // Sincroniza el valor del select Condición tras render del overlay

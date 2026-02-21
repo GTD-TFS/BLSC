@@ -103,9 +103,9 @@
       .cbm-overlay.open{display:flex}
       .cbm-panel{width:min(760px,100vw);max-height:92vh;overflow:auto;overscroll-behavior:contain;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));color:var(--ink);border:1px solid var(--line-soft);border-radius:24px 24px 0 0;padding:14px 14px 92px;font-family:'Inter','Segoe UI',sans-serif;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-shadow:var(--shadow-inner),var(--shadow-outer)}
       .cbm-grid{display:grid;grid-template-columns:1fr;gap:10px}
-      .cbm-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+      .cbm-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
       .cbm-lbl{font-size:12px;font-weight:700;color:var(--ink);margin:2px 0}
-      .cbm-in,.cbm-sel,.cbm-ta{width:100%;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));color:var(--ink);padding:9px 10px;font-size:15px}
+      .cbm-in,.cbm-sel,.cbm-ta{width:100%;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));color:var(--ink);padding:9px 10px;font-size:15px;box-sizing:border-box}
       .cbm-sec{border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:10px;margin-top:10px}
       .cbm-sec h3{margin:0 0 8px;font-size:14px}
       .cbm-actions{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));border-top:1px solid var(--line-soft);padding:10px;display:flex;gap:8px;z-index:400001;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
@@ -114,9 +114,10 @@
       .cbm-err{font-size:12px;color:var(--err);min-height:14px}
       .cbm-check{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:linear-gradient(165deg,var(--glass-a),var(--glass-b))}
       .cbm-check input{margin-top:2px;width:16px !important;height:16px;min-height:16px;flex:0 0 16px;accent-color:#22c55e}
-      .cbm-chipbox{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));min-height:44px}
+      .cbm-chipbox{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;border:0;background:transparent;min-height:32px}
       .cbm-chip{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(165deg,var(--glass-c),rgba(218,223,233,.18));border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:12px}
       .cbm-chip button{all:unset;cursor:pointer;font-size:13px;line-height:1;color:var(--err)}
+      .cbm-toast{position:sticky;top:6px;z-index:3;display:none;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,120,120,.5);background:rgba(120,20,24,.62);color:#ffe8e8;font-size:13px;font-weight:700}
       .cbm-hint{font-size:11px;color:var(--muted)}
       @media (max-width:640px){.cbm-row{grid-template-columns:1fr}.cbm-panel{padding-bottom:98px}}
     `;
@@ -136,8 +137,9 @@
       <div class="cbm-panel" role="dialog" aria-modal="true" aria-label="Datos para generar JSON codificado">
         <div class="cbm-check">
           <input id="cbmBypass" type="checkbox" />
-          <label for="cbmBypass"><strong>Detenido sin parte de intervención</strong><br><small>Permite finalizar guardando solo datos previos.</small></label>
+          <label for="cbmBypass"><strong>Detenido sin parte de intervención</strong></label>
         </div>
+        <div id="cbmToast" class="cbm-toast" role="status" aria-live="polite"></div>
         <div id="cbmErr" class="cbm-err"></div>
         <div class="cbm-sec" data-sec="base">
           <h3>Patrulla e intervención</h3>
@@ -145,10 +147,14 @@
             <div><div class="cbm-lbl">Unidad/grupo</div><input class="cbm-in" id="cbmUnidad"/></div>
             <div>
               <div class="cbm-lbl">Indicativos</div>
+              <input class="cbm-in" id="cbmIndicativoInput" list="cbmIndicativos" />
               <div class="cbm-chipbox" id="cbmIndicativosChips"></div>
-              <input class="cbm-in" id="cbmIndicativoInput" list="cbmIndicativos" placeholder="Escribe y pulsa Enter" />
             </div>
-            <div><div class="cbm-lbl">Agentes (coma o salto)</div><textarea class="cbm-ta" id="cbmAgentes"></textarea></div>
+            <div>
+              <div class="cbm-lbl">Agentes</div>
+              <input class="cbm-in" id="cbmAgenteInput" inputmode="numeric" pattern="[0-9]*" />
+              <div class="cbm-chipbox" id="cbmAgentesChips"></div>
+            </div>
             <div class="cbm-row">
               <div><div class="cbm-lbl">Fecha inicio</div><input class="cbm-in" id="cbmFecha" type="date"/></div>
               <div><div class="cbm-lbl">Hora inicio</div><input class="cbm-in" id="cbmHora" type="time" step="60"/></div>
@@ -156,7 +162,7 @@
             <div><div class="cbm-lbl">Origen actuación</div><select class="cbm-sel" id="cbmOrigen"><option value="">Seleccione</option><option>Suceso Sala 091</option><option>A iniciativa propia</option><option>A requerimiento de ciudadano</option><option>Por orden de la superioridad</option></select></div>
             <div><div class="cbm-lbl">Clase actuación</div><select class="cbm-sel" id="cbmClase"></select></div>
             <div><div class="cbm-lbl">Tipo hecho</div><select class="cbm-sel" id="cbmTipoHecho"></select></div>
-            <div><div class="cbm-lbl">Naturaleza lugar</div><select class="cbm-sel" id="cbmNaturaleza"><option>Vía publica urbana</option></select></div>
+            <div><div class="cbm-lbl">Naturaleza lugar</div><select class="cbm-sel" id="cbmNaturaleza"><option value="">Seleccione</option><option value="Vía publica urbana">Vía publica urbana</option></select></div>
             <div><div class="cbm-lbl">Municipio</div><select class="cbm-sel" id="cbmMunicipio"><option value="">Seleccione</option><option>ADEJE</option><option>ARONA</option></select></div>
             <div><div class="cbm-lbl">Calle</div><input class="cbm-in" id="cbmCalle" list="cbmCalles" placeholder="Escribe 3 letras"/><div class="cbm-hint">Solo se admite una calle del listado del municipio.</div></div>
           </div>
@@ -177,6 +183,7 @@
     const ov = buildModal();
     const $ = (id) => ov.querySelector(id);
     const bypass = $("#cbmBypass");
+    const toast = $("#cbmToast");
     const err = $("#cbmErr");
     const clase = $("#cbmClase");
     const tipoHecho = $("#cbmTipoHecho");
@@ -184,7 +191,10 @@
     const callesDL = $("#cbmCalles");
     const indicativosChips = $("#cbmIndicativosChips");
     const indicativoInput = $("#cbmIndicativoInput");
+    const agentesChips = $("#cbmAgentesChips");
+    const agenteInput = $("#cbmAgenteInput");
     const indicativoSet = new Set();
+    const agenteSet = new Set();
     const panel = ov.querySelector(".cbm-panel");
     const root = document.documentElement;
     const body = document.body;
@@ -207,24 +217,23 @@
       indicativos: Array.isArray(existing.indicativos)
         ? existing.indicativos
         : normalizeIndicativos(existing.indicativo),
-      agentesTxt: (existing.agentes || []).join(", "),
+      agentes: Array.isArray(existing.agentes) ? existing.agentes.map(a => String(a || "").trim()).filter(Boolean) : [],
       fechaInicio: existing.fechaInicio || toDDMMYYYY(nowDateISO()),
       horaInicio: existing.horaInicio || nowTimeHHMM(),
       datosActuacion: existing.datosActuacion || "",
       claseActuacion: existing.claseActuacion || "",
       tipoHecho: existing.tipoHecho || "",
-      naturalezaLugar: existing.naturalezaLugar || "Vía publica urbana",
+      naturalezaLugar: existing.naturalezaLugar || "",
       municipio: existing.municipio || "",
       calleInput: "",
       selectedStreet: null
     };
 
     $("#cbmUnidad").value = form.unidadGrupo || "BLSC";
-    $("#cbmAgentes").value = form.agentesTxt;
     $("#cbmFecha").value = fromDDMMYYYY(form.fechaInicio) || nowDateISO();
     $("#cbmHora").value = form.horaInicio || nowTimeHHMM();
     $("#cbmOrigen").value = form.datosActuacion;
-    $("#cbmNaturaleza").value = "Vía publica urbana";
+    $("#cbmNaturaleza").value = form.naturalezaLugar || "";
     $("#cbmMunicipio").value = ["ADEJE","ARONA"].includes(form.municipio) ? form.municipio : "";
     $("#cbmCalle").value = form.calleInput || "";
 
@@ -257,7 +266,27 @@
       renderIndicativos();
     }
 
+    function renderAgentes(){
+      agentesChips.innerHTML = "";
+      [...agenteSet].forEach(v => {
+        const chip = document.createElement("span");
+        chip.className = "cbm-chip";
+        chip.innerHTML = `${v}<button type="button" aria-label="Eliminar agente ${v}">✕</button>`;
+        chip.querySelector("button").onclick = () => { agenteSet.delete(v); renderAgentes(); };
+        agentesChips.appendChild(chip);
+      });
+    }
+
+    function addAgente(v){
+      const clean = String(v || "").replace(/\D+/g, "").trim();
+      if (!clean) return;
+      agenteSet.add(clean);
+      agenteInput.value = "";
+      renderAgentes();
+    }
+
     form.indicativos.forEach(addIndicativo);
+    form.agentes.forEach(addAgente);
     indicativoInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === ","){
         e.preventDefault();
@@ -265,6 +294,17 @@
       }
     });
     indicativoInput.addEventListener("change", () => addIndicativo(indicativoInput.value));
+    agenteInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === ","){
+        e.preventDefault();
+        addAgente(agenteInput.value);
+      }
+    });
+    agenteInput.addEventListener("input", () => {
+      const clean = String(agenteInput.value || "").replace(/\D+/g, "");
+      if (agenteInput.value !== clean) agenteInput.value = clean;
+    });
+    agenteInput.addEventListener("change", () => addAgente(agenteInput.value));
 
     const streetLookup = new Map();
     function refreshCalles(){
@@ -307,13 +347,13 @@
       return {
         unidadGrupo: ($("#cbmUnidad").value || "BLSC").trim() || "BLSC",
         indicativos: [...indicativoSet],
-        agentes: normalizeAgents($("#cbmAgentes").value),
+        agentes: [...agenteSet],
         fechaInicio: toDDMMYYYY(fechaIso),
         horaInicio: horaVal,
         datosActuacion: $("#cbmOrigen").value,
         claseActuacion: clase.value,
         tipoHecho: tipoHecho.value,
-        naturalezaLugar: "Vía publica urbana",
+        naturalezaLugar: $("#cbmNaturaleza").value,
         municipio: $("#cbmMunicipio").value,
         calleInput: $("#cbmCalle").value.trim(),
         selectedStreet: street || null,
@@ -325,13 +365,25 @@
       if (data.detenidoSinParteIntervencion) return "";
       if (!data.unidadGrupo) return "Falta Unidad o grupo.";
       if (!Array.isArray(data.indicativos) || data.indicativos.length === 0) return "Añade al menos un indicativo.";
+      if (!Array.isArray(data.agentes) || data.agentes.length === 0) return "Añade al menos un agente.";
       if (!data.fechaInicio || !data.horaInicio) return "Faltan Fecha/Hora inicio.";
+      if (!data.datosActuacion) return "Selecciona origen de actuación.";
       if (!data.claseActuacion) return "Falta Clase de actuación.";
       if (!data.tipoHecho) return "Falta Tipo de hecho.";
+      if (!data.naturalezaLugar) return "Selecciona naturaleza del lugar.";
       if (!data.municipio) return "Selecciona municipio (ADEJE o ARONA).";
       if (!data.calleInput || data.calleInput.length < 3) return "Escribe al menos 3 letras de la calle.";
       if (!data.selectedStreet) return "Debes elegir una calle del listado.";
       return "";
+    }
+
+    let toastTimer = null;
+    function showToast(msg){
+      if (!toast) return;
+      toast.textContent = msg || "Faltan campos obligatorios.";
+      toast.style.display = "block";
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.style.display = "none"; }, 2500);
     }
 
     function buildBundle(channel){
@@ -369,7 +421,7 @@
         fechaInicio: data.fechaInicio,
         horaInicio: data.horaInicio,
         datosActuacion: data.datosActuacion,
-        naturalezaLugar: "Vía publica urbana",
+        naturalezaLugar: data.naturalezaLugar,
         municipio: data.municipio,
         tipoVia,
         calle,
@@ -404,7 +456,7 @@
     $("#cbmConfirm").onclick = () => {
       const data = read();
       const msg = validate(data);
-      if (msg){ err.textContent = msg; return; }
+      if (msg){ err.textContent = msg; showToast(msg); return; }
       const bundle = buildBundle(mode);
       close(true);
       onDone(bundle);
