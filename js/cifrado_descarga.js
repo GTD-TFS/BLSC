@@ -100,9 +100,24 @@
 
   // Devuelve string JSON (wrapper) listo para descargar
   async function wrapEncryptedJSON(plainObj){
-    // Por defecto ciframos con "compapol"
-    const b64 = await encryptJSON(plainObj, PASSWORDS[0]);
-    const wrapped = Object.assign({}, WRAP_META, { [WRAP_KEY]: b64 });
+    const pass = PASSWORDS[0];
+    const b64 = await encryptJSON(plainObj, pass);
+    const wrapped = Object.assign({}, WRAP_META, {
+      [WRAP_KEY]: b64
+    });
+
+    // Compatibilidad COMPA-POL GTD SIN DILIGENCIAS:
+    // ese import legacy espera { meta_encrypted:true, data:"..." } con CryptoJS AES(passphrase).
+    if (window.CryptoJS && window.CryptoJS.AES && typeof window.CryptoJS.AES.encrypt === "function"){
+      try{
+        const legacyCipher = window.CryptoJS.AES.encrypt(JSON.stringify(plainObj), pass).toString();
+        wrapped.meta_encrypted = true;
+        wrapped.data = legacyCipher;
+      }catch(_){
+        // Si falla legado, mantenemos wrapper moderno.
+      }
+    }
+
     return JSON.stringify(wrapped, null, 2);
   }
 
@@ -128,6 +143,20 @@
         catch(e){ lastErr = e; }
       }
       throw lastErr || new Error("No se pudo descifrar");
+    }
+
+    // 2b) Compat legacy: {meta_encrypted:true, data:"..."} con CryptoJS
+    if (obj && obj.meta_encrypted === true && typeof obj.data === "string" && obj.data.trim()){
+      if (!window.CryptoJS) throw new Error("CryptoJS no disponible para formato legacy");
+      let lastErr = null;
+      for (const pw of PASSWORDS){
+        try{
+          const bytes = window.CryptoJS.AES.decrypt(obj.data, pw);
+          const txt = bytes.toString(window.CryptoJS.enc.Utf8);
+          if (txt && txt.trim()) return JSON.parse(txt);
+        }catch(e){ lastErr = e; }
+      }
+      throw lastErr || new Error("No se pudo descifrar formato legacy");
     }
 
     // 3) Si era JSON normal, devolverlo
