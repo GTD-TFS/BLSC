@@ -171,7 +171,7 @@ function setOverlayStaticLayoutVars(){
     : Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
   _overlayBaseViewportHeight = Math.max(0, baseH);
   ov.root.style.setProperty('--ov-h', `${_overlayBaseViewportHeight}px`);
-  const imgH = Math.max(120, Math.round(_overlayBaseViewportHeight * 0.34));
+  const imgH = Math.max(180, Math.round(_overlayBaseViewportHeight * 0.46));
   ov.root.style.setProperty('--ov-img-h', `${imgH}px`);
 }
 

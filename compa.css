@@ -535,6 +535,7 @@ body.compare-on #compareCard{display:block !important}
 
 #filiWrap{display:none}
 body.fili-has #filiWrap{display:block}
+body.fili-has .hero{display:none}
 #filiWrap{margin-top:20px}
 body.overlay-open{
   overflow:hidden !important;
@@ -566,23 +567,25 @@ html.overlay-open{
   left:0;
   right:0;
   z-index:3;
-  height:64px;
+  height:56px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
-  padding:10px 12px;
+  padding:calc(env(safe-area-inset-top) + 8px) 12px 0;
   color:#fff;
+  pointer-events:none;
 }
-#imgOverlay .topbar .t{font-weight:700}
+#imgOverlay .topbar .t{display:none !important}
+#imgOverlay .topbar button{pointer-events:auto}
 #imgOverlay .imgwrap{
   position:absolute;
-  top:64px;
+  top:0;
   left:0;
   right:0;
   z-index:2;
-  padding:0 12px 10px;
-  height:var(--ov-img-h, 34vh);
+  padding:calc(env(safe-area-inset-top) + 4px) 8px 8px;
+  height:var(--ov-img-h, 46vh);
   min-height:120px;
   overflow:hidden;
 }
@@ -591,7 +594,7 @@ html.overlay-open{
   position:absolute;
   left:0;
   right:0;
-  top:calc(64px + var(--ov-img-h, 34vh));
+  top:var(--ov-img-h, 46vh);
   bottom:var(--kb, 0px);
   z-index:3;
   overflow-y:auto;
@@ -609,34 +612,25 @@ html.overlay-open{
 
 /* Con teclado abierto: NO tocar foto; solo reducir campos vía --kb */
 #imgOverlay.kb-open .imgwrap{
-  height:156px;
-  min-height:156px;
+  height:var(--ov-img-h, 46vh);
+  min-height:120px;
 }
 #imgOverlay.kb-open .formwrap{
-  top:220px;
+  top:var(--ov-img-h, 46vh);
 }
 
 #imgOverlay.mode-no-image .imgwrap{
   display:none;
 }
 #imgOverlay.mode-no-image .formwrap{
-  top:64px;
+  top:calc(env(safe-area-inset-top) + 56px);
 }
 #imgOverlay.mode-no-image.kb-open .formwrap{
-  top:64px;
+  top:calc(env(safe-area-inset-top) + 56px);
 }
 
 #ovScrollRail{
-  position:absolute;
-  top:10px;
-  right:6px;
-  bottom:10px;
-  width:14px;
-  border-radius:999px;
-  background:rgba(255,255,255,.12);
-  border:1px solid rgba(255,255,255,.2);
-  opacity:.22;
-  pointer-events:none;
+  display:none !important;
 }
 #ovScrollThumb{
   display:none;
@@ -869,8 +863,8 @@ button{
 }
 
 #imgOverlay .topbar{
-  border-bottom:1px solid rgba(255,255,255,.12);
-  background:linear-gradient(165deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  border-bottom:0 !important;
+  background:transparent !important;
 }
 
 #imgOverlay .imgwrap{
@@ -889,10 +883,12 @@ button{
 
 #ovCloseTop,
 #ovRotate{
-  border:1px solid var(--line) !important;
-  background:linear-gradient(165deg, rgba(79,209,255,.22), rgba(124,255,197,.14)) !important;
-  color:#061322 !important;
+  border:1px solid rgba(255,255,255,.28) !important;
+  background:rgba(8,18,34,.18) !important;
+  color:#e7f3ff !important;
   text-shadow:none !important;
+  backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
 }
 
 #jobOverlay .backdrop{
