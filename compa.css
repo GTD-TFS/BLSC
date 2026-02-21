@@ -638,6 +638,24 @@ body{
   background:linear-gradient(165deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
 }
 
+.thumb{
+  border-color:rgba(79,209,255,.42) !important;
+  background:
+    radial-gradient(500px 140px at 0% -10%, rgba(79,209,255,.18), transparent 65%),
+    linear-gradient(165deg, rgba(255,255,255,.16), rgba(255,255,255,.05)) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.24), 0 8px 18px rgba(0,0,0,.28) !important;
+}
+
+.thumb img{
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(8,16,30,.95) !important;
+}
+
+.thumb-actions > button{
+  border:1px solid var(--line) !important;
+  background:linear-gradient(165deg, rgba(79,209,255,.22), rgba(124,255,197,.14)) !important;
+}
+
 textarea,input,select{
   border-color:var(--line);
   background:linear-gradient(165deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
@@ -674,7 +692,9 @@ button{
 
 .fili-card{
   border-color:var(--line) !important;
-  background:linear-gradient(165deg, rgba(255,255,255,.14), rgba(255,255,255,.05)) !important;
+  background:
+    radial-gradient(540px 180px at -6% -10%, rgba(79,209,255,.16), transparent 66%),
+    linear-gradient(165deg, rgba(255,255,255,.17), rgba(255,255,255,.06)) !important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 8px 20px rgba(0,0,0,.24) !important;
 }
 
@@ -734,4 +754,34 @@ button{
 #jobOverlay .panel{
   border-color:var(--line) !important;
   background:linear-gradient(165deg, rgba(255,255,255,.14), rgba(255,255,255,.06)) !important;
+}
+
+/* Modal bundle (denupol_modal_bundle.js) */
+.cbm-overlay{
+  background:rgba(3,8,18,.74) !important;
+}
+
+.cbm-panel{
+  border:1px solid var(--line) !important;
+  color:var(--ink) !important;
+  background:
+    radial-gradient(700px 220px at 0% -8%, rgba(79,209,255,.20), transparent 65%),
+    linear-gradient(165deg, rgba(255,255,255,.16), rgba(255,255,255,.06)) !important;
+  font-family:"Space Grotesk","Sora","Inter","Segoe UI",sans-serif !important;
+  box-shadow:var(--shadow-inner), 0 22px 44px rgba(0,0,0,.5) !important;
+}
+
+.cbm-panel input,
+.cbm-panel textarea,
+.cbm-panel select{
+  border:1px solid var(--line) !important;
+  background:linear-gradient(165deg, rgba(255,255,255,.15), rgba(255,255,255,.06)) !important;
+  color:var(--ink) !important;
+}
+
+.cbm-panel button{
+  border:1px solid var(--line) !important;
+  background:linear-gradient(165deg, rgba(79,209,255,.22), rgba(124,255,197,.14)) !important;
+  color:#071724 !important;
+  text-shadow:none !important;
 }
