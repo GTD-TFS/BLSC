@@ -424,7 +424,6 @@ function openFiliacionOverlay(i){
                 class="${isGuided ? "ov-readonly-input" : ""}"
               />
             `}
-            ${isGuided ? `<span class="ov-edit-hint" aria-hidden="true">→</span>` : ``}
           </div>
         `;
       }).join('')}

@@ -854,20 +854,16 @@ button{
   position:relative;
 }
 .ov-readonly-input{
-  background:linear-gradient(165deg, rgba(118,130,150,.30), rgba(93,107,126,.22)) !important;
-  border-color:rgba(168,183,201,.55) !important;
-  color:rgba(226,237,249,.92) !important;
-  padding-right:36px !important;
+  background:
+    linear-gradient(165deg, rgba(98,112,134,.46), rgba(80,94,116,.34)) !important,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'%3E%3Cpath fill='%23cde6ff' d='M8 5l8 7-8 7z'/%3E%3C/svg%3E") no-repeat right 12px center !important;
+  border-color:rgba(173,189,210,.72) !important;
+  color:rgba(236,244,252,.96) !important;
+  padding-right:40px !important;
+  cursor:not-allowed;
 }
 .ov-edit-hint{
-  position:absolute;
-  right:14px;
-  top:50%;
-  transform:translateY(-50%);
-  font-size:16px;
-  color:rgba(188,214,245,.95);
-  pointer-events:none;
-  line-height:1;
+  display:none !important;
 }
 
 .fili-actions .btnmini{

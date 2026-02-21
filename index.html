@@ -40,7 +40,7 @@
   </script>
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="compa.css?v=17">
+  <link rel="stylesheet" href="compa.css?v=18">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -869,6 +869,15 @@ async function shareOrDownloadImage(idx){
   const it = state.images?.[idx];
   if (!it || !it.base64) return;
 
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIOS){
+    const w = window.open(it.base64, "_blank");
+    if (!w) window.location.href = it.base64;
+    setStatus('Mantén pulsado y elige "Guardar en Fotos".', 'muted');
+    return;
+  }
+
   const blob = dataUrlToBlob(it.base64);
   const ext = (blob.type === 'image/png') ? 'png' : 'jpg';
   const name = (it.name && String(it.name).trim()) ? String(it.name).trim() : `imagen_${idx+1}.${ext}`;
@@ -885,15 +894,6 @@ async function shareOrDownloadImage(idx){
     // si el usuario cancela share, no lo tratamos como error
     const msg = String(e?.message || '').toLowerCase();
     if (msg.includes('abort') || msg.includes('cancel')) return;
-  }
-
-  // Fallback iOS: abrir imagen para "Guardar en Fotos" (evita fichero en Archivos).
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || "");
-  if (isIOS){
-    const w = window.open(it.base64, "_blank");
-    if (!w) window.location.href = it.base64;
-    setStatus('Mantén pulsado y elige "Guardar en Fotos".', 'muted');
-    return;
   }
 
   // Otros entornos: descarga normal.
@@ -1310,7 +1310,7 @@ bootstrapAuthGate();
 <script src="municipios.js"></script>
 <script src="js/compa_crypto_resize.js?v=1"></script>
 <script src="js/filiaciones_ui.js?v=4"></script>
-<script src="js/compa_overlay_media.js?v=7"></script>
+<script src="js/compa_overlay_media.js?v=8"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
 <script src="js/denupol_modal_bundle.js?v=6"></script>
 </body>
