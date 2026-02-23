@@ -32,7 +32,7 @@ function _setJobOverlayMode(mode){
   el.jobOverlay.dataset.mode = mode || 'running';
   if (el.jobCancel){
     if (mode === 'done'){
-      el.jobCancel.textContent = 'Aceptar';
+      el.jobCancel.textContent = 'Finalizar';
       el.jobCancel.classList.remove('secondary');
     } else {
       el.jobCancel.textContent = 'Cancelar';

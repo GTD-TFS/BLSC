@@ -1308,6 +1308,11 @@ if (el.btnCompartir) el.btnCompartir.onclick = async () => {
 
 /* ========= Limpiar ========= */
 el.btnLimpiar.onclick = () => {
+  const ok = confirm("¿Borrar datos de la intervención e iniciar una nueva?");
+  if (!ok) return;
+
+  try{ window.__compaCaseBundleClearDraft?.(); }catch{}
+
   state.images = [];
   state.lastJson = null;
   state.aiJson = null;
@@ -1346,8 +1351,8 @@ bootstrapAuthGate();
 <script src="municipios.js"></script>
 <script src="js/compa_crypto_resize.js?v=1"></script>
 <script src="js/filiaciones_ui.js?v=4"></script>
-<script src="js/compa_overlay_media.js?v=10"></script>
+<script src="js/compa_overlay_media.js?v=11"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
-<script src="js/denupol_modal_bundle.js?v=10"></script>
+<script src="js/denupol_modal_bundle.js?v=11"></script>
 </body>
 </html>

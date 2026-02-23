@@ -1,5 +1,6 @@
 (function(){
   const STYLE_ID = "denupol-casebundle-style";
+  let caseBundleDraft = null;
 
   const INDICATIVOS = [
     "AMÉRICA 1","AMÉRICA 10","AMÉRICA 101","AMÉRICA 103","AMÉRICA 11","AMÉRICA 111","AMÉRICA 112","AMÉRICA 113","AMÉRICA 114","AMÉRICA 115","AMÉRICA 116","AMÉRICA 117","AMÉRICA 118","AMÉRICA 12","AMÉRICA 13","AMÉRICA 14","AMÉRICA 15","AMÉRICA 16","AMÉRICA 17","AMÉRICA 2","AMÉRICA 21","AMÉRICA 22","AMÉRICA 23","AMÉRICA 3","AMÉRICA 31","AMÉRICA 32","AMÉRICA 33","AMÉRICA 34","AMÉRICA 35","AMÉRICA 36","AMÉRICA 37","AMÉRICA 4","AMÉRICA 41","AMÉRICA 42","AMÉRICA 43","AMÉRICA 5","AMÉRICA 51","AMÉRICA 52","AMÉRICA 53","AMÉRICA 54","AMÉRICA 55","AMÉRICA 56","AMÉRICA 57","AMÉRICA 6","AMÉRICA 61","AMÉRICA 62","AMÉRICA 63","AMÉRICA 7","AMÉRICA 71","AMÉRICA 72","AMÉRICA 73","AMÉRICA 74","AMÉRICA 75","AMÉRICA 76","AMÉRICA 77","AMÉRICA 8","AMÉRICA 81","AMÉRICA 82","AMÉRICA 83","AMÉRICA 9","AMÉRICA 91","AMÉRICA 92","AMÉRICA 93","AMÉRICA 94","AMÉRICA 95","AMÉRICA 96","AMÉRICA 97","AMÉRICA102","CHACAL 1","CHACAL 2","CHACAL 3","CHACAL 4","FARO-ADEJE","PUMA-NOCHE","RUTA ADEJE 1","RUTA ADEJE 2","RUTA ADEJE 3","RUTA ADEJE 4","TROYA 1","TROYA 11","TROYA 12","TROYA 13","TROYA 21","TROYA 22","TROYA 23"
@@ -40,6 +41,10 @@
   }
 
   function safeJSON(v){ try { return JSON.parse(JSON.stringify(v)); } catch(_) { return null; } }
+  function getDraft(){ return safeJSON(caseBundleDraft) || null; }
+  function setDraft(v){ caseBundleDraft = safeJSON(v); }
+  function clearDraft(){ caseBundleDraft = null; }
+  try{ window.__compaCaseBundleClearDraft = clearDraft; }catch(_){}
   function existingData(){
     try { if (typeof state !== "undefined" && state && state.lastJson && typeof state.lastJson === "object") return safeJSON(state.lastJson) || {}; } catch(_) {}
     return {};
@@ -105,13 +110,13 @@
       .cbm-grid{display:grid;grid-template-columns:1fr;gap:10px}
       .cbm-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
       .cbm-row > div{min-width:0}
-      .cbm-lbl{font-size:12px;font-weight:700;color:#aecdff;margin:2px 0}
+      .cbm-lbl{font-size:12px;font-weight:700;color:#bc8626;margin:2px 0}
       .cbm-in,.cbm-sel,.cbm-ta{display:block;width:100%;max-width:100%;min-width:0;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line-soft);background:linear-gradient(165deg,rgba(244,247,252,.2),rgba(223,229,239,.12));color:var(--ink);padding:9px 10px;font-size:15px;box-sizing:border-box}
       #cbmFecha,#cbmHora{-webkit-appearance:none;appearance:none;min-width:0}
       .cbm-sec{border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:10px;margin-top:10px}
       .cbm-sec h3{margin:0 0 8px;font-size:14px}
-      .cbm-actions{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));border-top:1px solid var(--line-soft);padding:10px;display:flex;gap:8px;z-index:400001;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
-      .cbm-btn{flex:1;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line);background:linear-gradient(165deg,var(--glass-c),rgba(218,223,233,.18));color:var(--ink);font-weight:700}
+      .cbm-actions{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(165deg,var(--glass-a),var(--glass-b));border-top:1px solid var(--line-soft);padding:10px max(10px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));display:flex;gap:8px;z-index:400001;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));box-sizing:border-box}
+      .cbm-btn{flex:1;min-width:0;max-width:calc(50% - 4px);min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--line);background:linear-gradient(165deg,var(--glass-c),rgba(218,223,233,.18));color:var(--ink);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .cbm-btn.primary{border-color:var(--edge-hi)}
       .cbm-err{font-size:12px;color:var(--err);min-height:14px}
       .cbm-check{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--line-soft);border-radius:var(--radius-sm);background:linear-gradient(165deg,var(--glass-a),var(--glass-b))}
@@ -167,7 +172,7 @@
       </div>
       <div class="cbm-actions">
         <button type="button" class="cbm-btn" id="cbmCancel">Cancelar</button>
-        <button type="button" class="cbm-btn primary" id="cbmConfirm">Continuar</button>
+        <button type="button" class="cbm-btn primary" id="cbmConfirm">Finalizar</button>
       </div>
       <datalist id="cbmIndicativos"></datalist>
       <datalist id="cbmTipoHechos"></datalist>
@@ -210,22 +215,26 @@
     clase.innerHTML = '<option value="">Seleccione</option>' + CLASES_ACTUACION.map(v => `<option>${v}</option>`).join("");
 
     const existing = existingData();
+    const draft = getDraft() || {};
 
     const form = {
-      unidadGrupo: existing.unidadGrupo || "BLSC",
-      indicativos: Array.isArray(existing.indicativos)
-        ? existing.indicativos
-        : normalizeIndicativos(existing.indicativo),
-      agentes: Array.isArray(existing.agentes) ? existing.agentes.map(a => String(a || "").trim()).filter(Boolean) : [],
-      fechaInicio: existing.fechaInicio || toDDMMYYYY(nowDateISO()),
-      horaInicio: existing.horaInicio || nowTimeHHMM(),
-      datosActuacion: existing.datosActuacion || "",
-      claseActuacion: existing.claseActuacion || "",
-      tipoHecho: existing.tipoHecho || "",
-      naturalezaLugar: String(existing.naturalezaLugar || "").replace("Vía publica urbana","Vía pública urbana"),
-      municipio: existing.municipio || "",
-      calleInput: "",
-      selectedStreet: null
+      unidadGrupo: draft.unidadGrupo || existing.unidadGrupo || "BLSC",
+      indicativos: Array.isArray(draft.indicativos)
+        ? draft.indicativos
+        : (Array.isArray(existing.indicativos) ? existing.indicativos : normalizeIndicativos(existing.indicativo)),
+      agentes: Array.isArray(draft.agentes)
+        ? draft.agentes.map(a => String(a || "").trim()).filter(Boolean)
+        : (Array.isArray(existing.agentes) ? existing.agentes.map(a => String(a || "").trim()).filter(Boolean) : []),
+      fechaInicio: draft.fechaInicio || existing.fechaInicio || toDDMMYYYY(nowDateISO()),
+      horaInicio: draft.horaInicio || existing.horaInicio || nowTimeHHMM(),
+      datosActuacion: draft.datosActuacion || existing.datosActuacion || "",
+      claseActuacion: draft.claseActuacion || existing.claseActuacion || "",
+      tipoHecho: draft.tipoHecho || existing.tipoHecho || "",
+      naturalezaLugar: String(draft.naturalezaLugar || existing.naturalezaLugar || "").replace("Vía publica urbana","Vía pública urbana"),
+      municipio: draft.municipio || existing.municipio || "",
+      calleInput: draft.calleInput || "",
+      selectedStreet: draft.selectedStreet || null,
+      detenidoSinParteIntervencion: !!(draft.detenidoSinParteIntervencion)
     };
 
     $("#cbmUnidad").value = form.unidadGrupo || "BLSC";
@@ -235,6 +244,7 @@
     $("#cbmNaturaleza").value = form.naturalezaLugar || "";
     $("#cbmMunicipio").value = ["ADEJE","ARONA"].includes(form.municipio) ? form.municipio : "";
     $("#cbmCalle").value = form.calleInput || "";
+    bypass.checked = !!form.detenidoSinParteIntervencion;
 
     function refreshTipo(){
       const claseVal = clase.value;
@@ -456,6 +466,9 @@
     }
 
     function close(ok){
+      if (!ok){
+        try{ setDraft(read()); }catch(_){}
+      }
       ov.classList.remove("open");
       root.style.overflow = savedRootOverflow;
       body.style.overflow = savedBodyOverflow;
@@ -474,6 +487,7 @@
       const data = read();
       const msg = validate(data);
       if (msg){ err.textContent = msg; showToast(msg); return; }
+      setDraft(data);
       const bundle = buildBundle(mode);
       close(true);
       onDone(bundle);
@@ -484,6 +498,13 @@
       ov.querySelectorAll("[data-sec='base'] .cbm-in,[data-sec='base'] .cbm-sel,[data-sec='base'] .cbm-ta").forEach(el => { el.disabled = disabled; });
       err.textContent = disabled ? "Modo rápido activo: se enviarán solo datos previos." : "";
     });
+    bypass.dispatchEvent(new Event("change"));
+
+    const persistDraft = () => {
+      try{ setDraft(read()); }catch(_){}
+    };
+    ov.addEventListener("input", persistDraft);
+    ov.addEventListener("change", persistDraft);
 
     root.style.overflow = "hidden";
     body.style.overflow = "hidden";
