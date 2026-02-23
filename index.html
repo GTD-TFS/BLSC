@@ -115,9 +115,9 @@
 
 <div id="topDock">
   <div class="emoji-row">
-    <label for="f" class="filebtn">◎</label>
-    <button id="btnToggleFili" type="button">⊕<span id="filiCountBadge" aria-hidden="true"></span></button>
-    <button id="btnToggleCompare" type="button">≣</button>
+    <label for="f" class="filebtn">📷</label>
+    <button id="btnToggleFili" type="button">👤<span id="filiCountBadge" aria-hidden="true"></span></button>
+    <button id="btnToggleCompare" type="button">📝</button>
   </div>
 </div>
 
@@ -1114,13 +1114,13 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
   const syncCompare = () => {
     const cOn = document.body.classList.contains('compare-on');
     if (bC){
-      bC.textContent = '≣';
+      bC.textContent = '📝';
     }
     if (bF){
       if (bF.firstChild && bF.firstChild.nodeType === Node.TEXT_NODE) {
-        bF.firstChild.nodeValue = '⊕';
+        bF.firstChild.nodeValue = '👤';
       } else {
-        bF.insertAdjacentText('afterbegin', '⊕');
+        bF.insertAdjacentText('afterbegin', '👤');
       }
     }
     updateMainContentVisibility();
@@ -1330,12 +1330,12 @@ el.btnLimpiar.onclick = () => {
   closeFiliacionOverlay();
   document.body.classList.remove('compare-on');
   if (el.btnToggleCompare){
-    el.btnToggleCompare.textContent = '≣';
+    el.btnToggleCompare.textContent = '📝';
   }
   if (el.btnToggleFili){
     const bF = el.btnToggleFili;
-    if (bF.firstChild && bF.firstChild.nodeType === Node.TEXT_NODE) bF.firstChild.nodeValue = '⊕';
-    else bF.insertAdjacentText('afterbegin', '⊕');
+    if (bF.firstChild && bF.firstChild.nodeType === Node.TEXT_NODE) bF.firstChild.nodeValue = '👤';
+    else bF.insertAdjacentText('afterbegin', '👤');
   }
   setStatus("Limpio.");
   updateFiliUI();
