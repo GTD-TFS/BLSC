@@ -1,0 +1,168 @@
+<svg width="1400" height="1800" viewBox="0 0 1400 1800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e9edf3"/>
+      <stop offset="1" stop-color="#d6dde7"/>
+    </linearGradient>
+
+    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="13" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.05"/>
+      </feComponentTransfer>
+    </filter>
+
+    <filter id="softShadow" x="-50%" y="-50%" width="220%" height="250%">
+      <feDropShadow dx="0" dy="28" stdDeviation="24" flood-color="#2a3550" flood-opacity="0.24"/>
+      <feDropShadow dx="0" dy="10" stdDeviation="7" flood-color="#000" flood-opacity="0.24"/>
+    </filter>
+
+    <filter id="buttonShadow" x="-60%" y="-80%" width="240%" height="280%">
+      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#061022" flood-opacity="0.42"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="5" flood-color="#000" flood-opacity="0.33"/>
+    </filter>
+
+    <filter id="softGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+
+    <filter id="softGlowStrong" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+
+    <linearGradient id="glassDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#25314bee"/>
+      <stop offset="0.55" stop-color="#18243ddd"/>
+      <stop offset="1" stop-color="#101a30f2"/>
+    </linearGradient>
+
+    <linearGradient id="glassRim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffffbc"/>
+      <stop offset="0.5" stop-color="#b9dcff78"/>
+      <stop offset="1" stop-color="#ff9e8266"/>
+    </linearGradient>
+
+    <linearGradient id="specTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffffec"/>
+      <stop offset="0.45" stop-color="#ffffff66"/>
+      <stop offset="1" stop-color="#ffffff00"/>
+    </linearGradient>
+
+    <radialGradient id="causticBlue" cx="0.16" cy="0.72" r="0.94">
+      <stop offset="0" stop-color="#5ad6ffba"/>
+      <stop offset="1" stop-color="#5ad6ff00"/>
+    </radialGradient>
+
+    <radialGradient id="causticRed" cx="0.82" cy="0.8" r="0.95">
+      <stop offset="0" stop-color="#ff57579e"/>
+      <stop offset="1" stop-color="#ff575700"/>
+    </radialGradient>
+
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff2a"/>
+      <stop offset="1" stop-color="#ffffff08"/>
+    </linearGradient>
+
+    <mask id="pillMask">
+      <rect x="0" y="0" width="560" height="170" rx="85" fill="white"/>
+    </mask>
+  </defs>
+
+  <rect width="1400" height="1800" fill="url(#wall)"/>
+  <rect width="1400" height="1800" filter="url(#grain)"/>
+
+  <text x="88" y="118" fill="#12151d" font-family="SF Pro Display, Arial" font-size="72" font-weight="700">COMPA·POL Material Study</text>
+  <text x="88" y="170" fill="#3d4758" font-family="SF Pro Text, Arial" font-size="32">Brillos reales: specular difuso, glow suave, caustics y sombras de contacto.</text>
+
+  <g transform="translate(90 280)">
+    <g filter="url(#buttonShadow)">
+      <rect x="0" y="0" width="560" height="170" rx="85" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="3"/>
+      <rect x="8" y="8" width="544" height="68" rx="34" fill="url(#specTop)" opacity="0.58"/>
+      <ellipse cx="280" cy="170" rx="236" ry="18" fill="#000" opacity="0.16"/>
+    </g>
+
+    <g mask="url(#pillMask)">
+      <rect x="-40" y="46" width="360" height="220" fill="url(#causticBlue)"/>
+      <rect x="252" y="38" width="360" height="230" fill="url(#causticRed)"/>
+      <ellipse cx="176" cy="50" rx="180" ry="42" fill="#fff" opacity="0.18" filter="url(#softGlowStrong)"/>
+      <ellipse cx="390" cy="62" rx="166" ry="40" fill="#fff" opacity="0.14" filter="url(#softGlowStrong)"/>
+      <ellipse cx="256" cy="84" rx="220" ry="60" fill="#fff" opacity="0.12" filter="url(#softGlow)"/>
+    </g>
+
+    <ellipse cx="280" cy="66" rx="230" ry="54" fill="#fff" opacity="0.18" filter="url(#softGlowStrong)"/>
+    <ellipse cx="280" cy="74" rx="198" ry="42" fill="#fff" opacity="0.22" filter="url(#softGlow)"/>
+    <text x="280" y="108" text-anchor="middle" fill="#f8fbff" font-family="SF Pro Display, Arial" font-size="52">Send</text>
+  </g>
+
+  <g transform="translate(750 280)">
+    <g filter="url(#buttonShadow)">
+      <circle cx="85" cy="85" r="85" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="3"/>
+      <ellipse cx="85" cy="170" rx="62" ry="14" fill="#000" opacity="0.16"/>
+    </g>
+
+    <circle cx="72" cy="58" r="40" fill="#fff" opacity="0.26" filter="url(#softGlowStrong)"/>
+    <ellipse cx="92" cy="66" rx="62" ry="24" fill="#fff" opacity="0.26" filter="url(#softGlow)"/>
+    <circle cx="78" cy="78" r="70" fill="url(#surface)" opacity="0.68"/>
+    <text x="85" y="103" text-anchor="middle" fill="#f7fbff" font-size="64">☁</text>
+  </g>
+
+  <g transform="translate(90 560)">
+    <g filter="url(#softShadow)">
+      <rect x="0" y="0" width="1220" height="380" rx="54" fill="#f7f9ff40" stroke="#ffffff8f"/>
+      <rect x="12" y="12" width="1196" height="124" rx="42" fill="#ffffff6b"/>
+    </g>
+
+    <ellipse cx="612" cy="58" rx="520" ry="52" fill="#fff" opacity="0.17" filter="url(#softGlowStrong)"/>
+    <ellipse cx="610" cy="98" rx="560" ry="70" fill="#fff" opacity="0.10" filter="url(#softGlow)"/>
+
+    <text x="56" y="88" fill="#101a2c" font-size="54" font-family="SF Pro Display, Arial" font-weight="700">Filiacion 1</text>
+    <text x="56" y="156" fill="#2f3e57" font-size="34" font-family="SF Pro Text, Arial">JAVIER BEJAR · Pasaporte · Legal</text>
+
+    <g transform="translate(56 210)">
+      <rect x="0" y="0" width="320" height="118" rx="59" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="2.5" filter="url(#buttonShadow)"/>
+      <ellipse cx="160" cy="42" rx="128" ry="26" fill="#fff" opacity="0.20" filter="url(#softGlow)"/>
+      <text x="160" y="76" text-anchor="middle" fill="#f8fbff" font-size="42">Editar</text>
+    </g>
+
+    <g transform="translate(420 210)">
+      <rect x="0" y="0" width="320" height="118" rx="59" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="2.5" filter="url(#buttonShadow)"/>
+      <ellipse cx="160" cy="42" rx="128" ry="26" fill="#fff" opacity="0.20" filter="url(#softGlow)"/>
+      <text x="160" y="76" text-anchor="middle" fill="#f8fbff" font-size="42">Abrir</text>
+    </g>
+
+    <g transform="translate(784 210)">
+      <rect x="0" y="0" width="320" height="118" rx="59" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="2.5" filter="url(#buttonShadow)"/>
+      <ellipse cx="160" cy="42" rx="128" ry="26" fill="#fff" opacity="0.20" filter="url(#softGlow)"/>
+      <text x="160" y="76" text-anchor="middle" fill="#f8fbff" font-size="42">Borrar</text>
+    </g>
+  </g>
+
+  <g transform="translate(90 1030)">
+    <g filter="url(#softShadow)">
+      <rect x="0" y="0" width="1220" height="280" rx="86" fill="#f7f9ff30" stroke="#ffffff8a"/>
+      <rect x="16" y="18" width="1188" height="92" rx="46" fill="#ffffff59"/>
+      <ellipse cx="610" cy="292" rx="460" ry="26" fill="#000" opacity="0.18"/>
+    </g>
+
+    <ellipse cx="610" cy="64" rx="520" ry="56" fill="#fff" opacity="0.16" filter="url(#softGlowStrong)"/>
+
+    <g transform="translate(80 74)">
+      <circle cx="94" cy="66" r="94" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="3" filter="url(#buttonShadow)"/>
+      <ellipse cx="94" cy="40" rx="66" ry="24" fill="#fff" opacity="0.30" filter="url(#softGlow)"/>
+      <text x="94" y="90" text-anchor="middle" fill="#f8fbff" font-size="66">◎</text>
+    </g>
+
+    <g transform="translate(472 48)">
+      <rect x="0" y="0" width="276" height="160" rx="80" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="3" filter="url(#buttonShadow)"/>
+      <ellipse cx="138" cy="54" rx="116" ry="30" fill="#fff" opacity="0.28" filter="url(#softGlow)"/>
+      <text x="138" y="106" text-anchor="middle" fill="#f8fbff" font-size="76">☁</text>
+    </g>
+
+    <g transform="translate(952 74)">
+      <circle cx="94" cy="66" r="94" fill="url(#glassDark)" stroke="url(#glassRim)" stroke-width="3" filter="url(#buttonShadow)"/>
+      <ellipse cx="94" cy="40" rx="66" ry="24" fill="#fff" opacity="0.30" filter="url(#softGlow)"/>
+      <text x="94" y="90" text-anchor="middle" fill="#f8fbff" font-size="66">⟳</text>
+    </g>
+  </g>
+</svg>

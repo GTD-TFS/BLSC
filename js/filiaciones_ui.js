@@ -584,6 +584,7 @@ function fillCountriesDatalist() {
       "DENUNCIADO",
       "IDENTIFICADO",
       "INFRACTOR",
+      "FINADO",
     ];
     dl.innerHTML = opts
       .filter((x) => x !== "")
@@ -606,6 +607,7 @@ function fillCountriesDatalist() {
       "DENUNCIADO",
       "IDENTIFICADO",
       "INFRACTOR",
+      "FINADO",
     ];
     const missing = want.filter((x) => !have.has(normUp(x)));
     if (missing.length) {

@@ -42,6 +42,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="compa.css?v=21">
+  <link rel="stylesheet" href="glass_real_lighting.css?v=1">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -155,9 +156,9 @@
   <!-- Visor de imagen + edición (móvil) -->
   <div id="imgOverlay" aria-hidden="true">
     <div class="topbar">
-      <button id="ovRotate" type="button" aria-label="Girar 90 grados antihorario">↺</button>
+      <button id="ovCloseTop" type="button" aria-label="Volver">🔙</button>
       <div class="t" id="ovTitle">Imagen</div>
-      <button id="ovCloseTop" type="button" aria-label="Volver">↩︎</button>
+      <button id="ovRotate" type="button" aria-label="Girar 90 grados antihorario">↺</button>
     </div>
     <div class="imgwrap">
       <img id="ovImg" alt="Documento" />

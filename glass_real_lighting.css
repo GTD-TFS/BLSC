@@ -1,0 +1,274 @@
+/* Realistic glass lighting layer (non-destructive overrides) */
+:root{
+  --real-bg-a:#ffffff;
+  --real-bg-b:#f7f9fc;
+  --real-bg-c:#eef2f7;
+  --real-line:rgba(255,255,255,.20);
+  --real-line-soft:rgba(255,255,255,.12);
+  --real-sheen-top:rgba(255,255,255,.24);
+  --real-sheen-mid:rgba(255,255,255,.08);
+}
+
+#bg{
+  background:
+    url('icon-192.png') center 43% / min(42vw, 310px) auto no-repeat,
+    radial-gradient(980px 560px at 4% -14%, rgba(255,255,255,.35), transparent 62%),
+    radial-gradient(1100px 640px at 96% -6%, rgba(255,255,255,.22), transparent 66%),
+    radial-gradient(900px 650px at 50% 112%, rgba(229,235,243,.62), transparent 75%),
+    linear-gradient(160deg, var(--real-bg-a), var(--real-bg-b) 52%, var(--real-bg-c));
+}
+
+#bg::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(720px 300px at 18% 24%, rgba(255,255,255,.08), transparent 70%),
+    radial-gradient(760px 320px at 82% 32%, rgba(255,255,255,.06), transparent 70%),
+    repeating-linear-gradient(110deg, rgba(255,255,255,.012) 0 2px, rgba(0,0,0,.015) 2px 4px);
+  mix-blend-mode:screen;
+  opacity:.4;
+  pointer-events:none;
+}
+
+#bg::after{
+  content:"";
+  position:absolute;
+  inset:-12%;
+  background:
+    radial-gradient(55% 28% at 22% 14%, rgba(255,255,255,.14), transparent 76%),
+    radial-gradient(48% 24% at 76% 18%, rgba(255,255,255,.11), transparent 78%),
+    radial-gradient(28% 18% at 60% 62%, rgba(255,255,255,.06), transparent 84%),
+    radial-gradient(20% 16% at 38% 76%, rgba(255,255,255,.05), transparent 84%);
+  filter:blur(12px);
+  opacity:.4;
+  pointer-events:none;
+}
+
+.hero,
+.card,
+#topDock,
+#bottomDock,
+#imgOverlay .formwrap,
+#jobOverlay .panel,
+.loginCard{
+  border:1px solid rgba(223,230,242,.72) !important;
+  background:
+    radial-gradient(120% 62% at 50% -16%, rgba(238,246,255,.18), transparent 62%),
+    radial-gradient(70% 50% at 16% 112%, rgba(70,112,194,.14), transparent 74%),
+    radial-gradient(74% 52% at 88% 108%, rgba(150,194,242,.10), transparent 74%),
+    linear-gradient(165deg, rgba(27,36,56,.97), rgba(12,20,35,.98)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.44),
+    inset 0 -1px 0 rgba(0,0,0,.30),
+    inset 0 0 0 1px rgba(188,198,216,.30),
+    0 20px 44px rgba(10,18,32,.42),
+    0 5px 14px rgba(14,24,40,.28) !important;
+  color:#e8f1ff !important;
+}
+
+.hero::before,
+.card::before,
+#topDock::before,
+#bottomDock::before{
+  background:
+    radial-gradient(130% 68% at 50% 0%, rgba(255,255,255,.30) 0%, rgba(255,255,255,.09) 34%, rgba(255,255,255,.02) 72%) !important;
+  filter:blur(.35px);
+  opacity:.6;
+}
+
+.filebtn,
+#btnToggleFili,
+#btnToggleCompare,
+#btnDescargar,
+#btnCloud,
+#btnLimpiar,
+#imgOverlay .topbar button{
+  position:relative;
+  overflow:hidden;
+  border:1px solid var(--real-line) !important;
+  background:
+    radial-gradient(140% 88% at 50% -12%, rgba(255,255,255,.26), rgba(255,255,255,.05) 46%, rgba(255,255,255,.01) 80%),
+    radial-gradient(72% 82% at 20% 112%, rgba(255,255,255,.08), transparent 74%),
+    radial-gradient(72% 82% at 82% 112%, rgba(255,255,255,.08), transparent 74%),
+    linear-gradient(170deg, rgba(133,144,164,.66), rgba(108,120,142,.68)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.30),
+    inset 0 -1px 0 rgba(0,0,0,.28),
+    0 8px 20px rgba(0,0,0,.34) !important;
+  color:#f5f9ff !important;
+  text-shadow:0 1px 0 rgba(0,0,0,.4);
+}
+
+.filebtn::before,
+#btnToggleFili::before,
+#btnToggleCompare::before,
+#btnDescargar::before,
+#btnCloud::before,
+#btnLimpiar::before{
+  content:"";
+  position:absolute;
+  inset:-18% -8% 44%;
+  background:
+    radial-gradient(70% 84% at 50% 38%, rgba(255,255,255,.34), rgba(255,255,255,.07) 56%, transparent 84%);
+  filter:blur(3.5px);
+  opacity:.6;
+  pointer-events:none;
+}
+
+.filebtn::after,
+#btnToggleFili::after,
+#btnToggleCompare::after,
+#btnDescargar::after,
+#btnCloud::after,
+#btnLimpiar::after{
+  content:"";
+  position:absolute;
+  inset:56% 12% -16%;
+  background:radial-gradient(72% 100% at 50% 0%, rgba(0,0,0,.24), transparent 78%);
+  filter:blur(4px);
+  opacity:.48;
+  pointer-events:none;
+}
+
+textarea,
+input,
+select{
+  border-color:var(--real-line-soft) !important;
+  background:
+    radial-gradient(100% 56% at 50% 0%, rgba(255,255,255,.14), rgba(255,255,255,.04) 54%, rgba(255,255,255,.02) 100%),
+    linear-gradient(170deg, rgba(20,28,46,.64), rgba(12,18,32,.64)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 -1px 0 rgba(0,0,0,.22) !important;
+}
+
+#imgOverlay{
+  background:
+    radial-gradient(760px 320px at 18% -2%, rgba(255,255,255,.08), transparent 64%),
+    radial-gradient(760px 340px at 80% 0%, rgba(255,255,255,.08), transparent 66%),
+    linear-gradient(168deg, #f4f7fb, #eaf0f7 62%, #e3eaf3) !important;
+}
+
+.hero,
+.card,
+#topDock,
+#bottomDock,
+#imgOverlay .formwrap,
+#jobOverlay .panel{
+  border:1px solid rgba(223,230,242,.72) !important;
+  background:
+    radial-gradient(120% 62% at 50% -16%, rgba(238,246,255,.18), transparent 62%),
+    radial-gradient(70% 50% at 16% 112%, rgba(70,112,194,.14), transparent 74%),
+    radial-gradient(74% 52% at 88% 108%, rgba(150,194,242,.10), transparent 74%),
+    linear-gradient(165deg, rgba(27,36,56,.97), rgba(12,20,35,.98)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.44),
+    inset 0 -1px 0 rgba(0,0,0,.30),
+    inset 0 0 0 1px rgba(188,198,216,.30),
+    0 20px 44px rgba(10,18,32,.42),
+    0 5px 14px rgba(14,24,40,.28) !important;
+  color:#e8f1ff !important;
+}
+
+/* Badge de filiaciones: mantener visible y por encima */
+#btnToggleFili{
+  overflow:visible !important;
+}
+
+#filiCountBadge{
+  top:-6px !important;
+  right:-6px !important;
+  z-index:5 !important;
+}
+
+body,
+.muted,
+label,
+.fili-chip-sub,
+#jobOverlay .msg{
+  color:#1f2937 !important;
+}
+
+.card label,
+#jobOverlay .msg,
+#jobOverlay .timer,
+#jobOverlay .title,
+.card .muted,
+.fili-chip-sub{
+  color:#dbe8ff !important;
+}
+
+#filiWrap label,
+#filiacionesOut label,
+.fili-grid label{
+  color:#eef5ff !important;
+}
+
+.hero h1,
+.fili-title,
+.fili-chip-title,
+#jobOverlay .title,
+#jobOverlay .timer{
+  color:#eef4ff !important;
+  text-shadow:none !important;
+}
+
+.filebtn,
+#btnToggleFili,
+#btnToggleCompare,
+#btnDescargar,
+#btnCloud,
+#btnLimpiar,
+#imgOverlay .topbar button{
+  color:#0f172a !important;
+  text-shadow:none !important;
+}
+
+/* Overlay image controls: slightly more transparent */
+#ovCloseTop,
+#ovRotate{
+  border-color:rgba(216,226,241,.58) !important;
+  background:linear-gradient(170deg, rgba(133,144,164,.42), rgba(108,120,142,.44)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.24),
+    inset 0 -1px 0 rgba(0,0,0,.20),
+    0 6px 14px rgba(0,0,0,.24) !important;
+}
+
+/* Sin foto: ocultar botón de rotar */
+#imgOverlay.mode-no-image #ovRotate{
+  display:none !important;
+}
+
+/* Filiaciones: a bit more breathing room between fields */
+#filiacionesOut .fili-grid{
+  gap:12px !important;
+}
+
+#ovForm .fili-grid{
+  gap:12px !important;
+}
+
+#ovForm .fili-grid > div{
+  margin-bottom:2px;
+}
+
+#ovForm .fili-grid label{
+  margin:0 0 8px !important;
+}
+
+/* Modal final (bundle): increase spacing between fields */
+.cbm-panel .cbm-grid{
+  gap:12px !important;
+}
+
+.cbm-panel .cbm-row{
+  gap:10px !important;
+}
+
+.cbm-panel .cbm-lbl{
+  margin:0 0 7px !important;
+  padding-left:18px !important;
+  color:#d4af37b8 !important;
+}

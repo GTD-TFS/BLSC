@@ -386,7 +386,7 @@ function openFiliacionOverlay(i){
   setupOverlayZoom();
 
   const schema = [
-    { key:"Condición", label:"Condición", type:"select", options:["","Perjudicado","Testigo","Víctima","Requirente","Denunciado","Identificado","Infractor"], defaultValue:"" },
+    { key:"Condición", label:"Condición", type:"select", options:["","Perjudicado","Testigo","Víctima","Requirente","Denunciado","Identificado","Infractor","Finado"], defaultValue:"" },
     { key:"Nombre", label:"Nombre" },
     { key:"Apellidos", label:"Apellidos" },
     { key:"Tipo de documento", label:"Tipo de documento" },
@@ -551,6 +551,7 @@ function openThumbOverlay(i){
         <option value="Denunciado">Denunciado</option>
         <option value="Identificado">Identificado</option>
         <option value="Infractor">Infractor</option>
+        <option value="Finado">Finado</option>
       </select>
     </div>
     <div>
