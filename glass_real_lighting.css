@@ -302,3 +302,21 @@ html[data-theme="light"] .hero h1{
   color:#d6b36a !important;
   text-shadow:0 1px 0 rgba(0,0,0,.35), 0 0 14px rgba(214,179,106,.16) !important;
 }
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea{
+  color:#ffffff !important;
+  caret-color:#ffffff !important;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder{
+  color:rgba(255,255,255,.72) !important;
+}
+
+html[data-theme="light"] #svcAdd,
+html[data-theme="light"] #svcClear{
+  color:#ffffff !important;
+  text-shadow:0 1px 0 rgba(0,0,0,.35) !important;
+}
