@@ -30,6 +30,14 @@
     return `${h}:${m}`;
   }
 
+  function normalizeNaturalezaLugar(v){
+    const raw = String(v || "").trim();
+    if (!raw) return "";
+    const key = keyNorm(raw);
+    if (key === "via publica urbana") return "Vía pública urbana";
+    return raw;
+  }
+
   function fromDDMMYYYY(v){
     const m = String(v || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
@@ -164,7 +172,7 @@
             <div><div class="cbm-lbl">Origen actuación</div><select class="cbm-sel" id="cbmOrigen"><option value="">Seleccione</option><option>Suceso Sala 091</option><option>A iniciativa propia</option><option>A requerimiento de ciudadano</option><option>Por orden de la superioridad</option></select></div>
             <div><div class="cbm-lbl">Clase actuación</div><select class="cbm-sel" id="cbmClase"></select></div>
             <div><div class="cbm-lbl">Tipo hecho</div><input class="cbm-in" id="cbmTipoHechoInput" list="cbmTipoHechos" placeholder="Seleccione tipo de hecho"/><div class="cbm-hint">En DELITOS e INFRACCIONES escribe al menos 3 letras.</div></div>
-            <div><div class="cbm-lbl">Naturaleza lugar</div><select class="cbm-sel" id="cbmNaturaleza"><option value="">Seleccione</option><option value="Vía publica urbana">Vía publica urbana</option></select></div>
+            <div><div class="cbm-lbl">Naturaleza lugar</div><select class="cbm-sel" id="cbmNaturaleza"><option value="">Seleccione</option><option value="Vía pública urbana">Vía pública urbana</option></select></div>
             <div><div class="cbm-lbl">Municipio</div><select class="cbm-sel" id="cbmMunicipio"><option value="">Seleccione</option><option>ADEJE</option><option>ARONA</option></select></div>
             <div><div class="cbm-lbl">Calle</div><input class="cbm-in" id="cbmCalle" list="cbmCalles"/><div class="cbm-hint">Solo se admite una calle del listado del municipio.</div></div>
           </div>
@@ -230,7 +238,7 @@
       datosActuacion: draft.datosActuacion || existing.datosActuacion || "",
       claseActuacion: draft.claseActuacion || existing.claseActuacion || "",
       tipoHecho: draft.tipoHecho || existing.tipoHecho || "",
-      naturalezaLugar: String(draft.naturalezaLugar || existing.naturalezaLugar || "").replace("Vía publica urbana","Vía pública urbana"),
+      naturalezaLugar: normalizeNaturalezaLugar(draft.naturalezaLugar || existing.naturalezaLugar || ""),
       municipio: draft.municipio || existing.municipio || "",
       calleInput: draft.calleInput || "",
       selectedStreet: draft.selectedStreet || null,
@@ -378,7 +386,7 @@
         datosActuacion: $("#cbmOrigen").value,
         claseActuacion: clase.value,
         tipoHecho: String(tipoHechoInput.value || "").trim(),
-        naturalezaLugar: $("#cbmNaturaleza").value,
+        naturalezaLugar: normalizeNaturalezaLugar($("#cbmNaturaleza").value),
         municipio: $("#cbmMunicipio").value,
         calleInput: $("#cbmCalle").value.trim(),
         selectedStreet: street || null,
