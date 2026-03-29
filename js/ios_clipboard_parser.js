@@ -1,18 +1,8 @@
-/* iOS/macOS clipboard parser for filiaciones (DNI/NIE/Pasaporte)
+/* Clipboard parser for filiaciones (DNI/NIE/Pasaporte)
  * Archivo aislado: no modifica el flujo existente, solo añade un botón en el overlay de edición.
  */
 (function(){
   'use strict';
-
-  function isAppleClipboardTarget(){
-    const ua = String(navigator.userAgent || '');
-    const platform = String(navigator.platform || '');
-    const isIPhone = /iPhone/i.test(ua);
-    const isMac = /Macintosh|Mac OS X/i.test(ua) || /Mac/i.test(platform);
-    return isIPhone || isMac;
-  }
-
-  if (!isAppleClipboardTarget()) return;
 
   function notify(msg, type){
     try{
