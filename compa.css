@@ -407,6 +407,32 @@ input[type="file"].fileinput{
   border-radius:999px;
 }
 
+.btn-icon{
+  position:relative;
+  z-index:2;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:24px;
+  height:24px;
+  line-height:0;
+  pointer-events:none;
+}
+.btn-icon svg{
+  width:100%;
+  height:100%;
+  display:block;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+#btnCloud .icon-home{display:none}
+body.services-on #btnCloud .icon-home{display:inline-flex}
+body.services-on #btnCloud .icon-tool{display:none}
+
 #topDock,
 #bottomDock{
   position:fixed;
@@ -881,6 +907,41 @@ body{
   font-family:"Sora","Space Grotesk","Inter",sans-serif;
   font-weight:800;
   letter-spacing:.7px;
+  position:relative;
+  display:inline-block;
+  white-space:nowrap;
+  color:#d9b35a;
+  text-shadow:0 1px 0 rgba(42,24,3,.45), 0 0 18px rgba(229,189,92,.2);
+}
+
+.hero h1::after{
+  content:attr(data-title);
+  position:absolute;
+  inset:0;
+  color:transparent;
+  background-image:linear-gradient(
+    105deg,
+    rgba(255,255,255,0) 36%,
+    rgba(255,247,220,.96) 48%,
+    rgba(255,243,202,.22) 53%,
+    rgba(255,255,255,0) 66%
+  );
+  background-size:240% 100%;
+  background-position:-170% 0;
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  pointer-events:none;
+  animation:compapolGoldShimmer 8s linear infinite;
+}
+
+@keyframes compapolGoldShimmer{
+  from{ background-position:170% 0; }
+  to{ background-position:-170% 0; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .hero h1::after{ animation:none; }
 }
 
 #themeHoldZone{

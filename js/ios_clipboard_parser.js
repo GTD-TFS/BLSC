@@ -124,6 +124,23 @@
       .replace(/[^A-Z0-9<]/g, '');
   }
 
+  function normalizeMrzDocCore(v){
+    return String(v || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9<]/g, '')
+      .replace(/<+/g, '')
+      .trim();
+  }
+
+  function isKnownIso3(code){
+    const c = String(code || '').toUpperCase().replace(/[^A-Z]/g, '');
+    if (!/^[A-Z]{3}$/.test(c)) return false;
+    try{
+      if (window.PAISES_ISO3?.countryNameFromIso3?.(c)) return true;
+    }catch{}
+    return c === 'ESP';
+  }
+
   function normalizeDocCandidate(v){
     return String(v || '')
       .toUpperCase()
@@ -167,16 +184,17 @@
   function cleanMrzSurname(s){
     let v = String(s || '')
       .toUpperCase()
-      .replace(/[く＜]/g, '<');
-    // Quita prefijos tipo P<ESP / PKESP / I<ESP al inicio de línea MRZ de nombre.
-    v = v.replace(/^(?:P<|PK|I<|IK|A<|AK|C<|CK)?([A-Z]{3})/, (m) => {
-      // Solo quitamos si realmente parece cabecera MRZ con código país.
-      if (/^(P<|PK|I<|IK|A<|AK|C<|CK)[A-Z]{3}/.test(m)) return '';
-      return m;
-    });
-    v = v.replace(/^P[K<]?[A-Z]{3}/, '');
-    v = v.replace(/^[PIAC][K<]?[A-Z]{3}/, '');
-    v = v.replace(/<+/g, ' ');
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[く＜«»\s]+/g, '<')
+      .replace(/[^A-Z<]/g, '')
+      .replace(/<+/g, '<');
+
+    const m = v.match(/^([PIAC])K?<*([A-Z]{3})(.*)$/);
+    if (m && isKnownIso3(m[2]) && /[A-Z]/.test(m[3] || '')){
+      v = m[3] || '';
+    }
+
+    v = v.replace(/^<+/, '').replace(/<+/g, ' ');
     return cleanPersonName(v);
   }
 
@@ -202,13 +220,16 @@
     const out = {};
     if (!mrz.length) return out;
 
-    let l2 = '';
-    for (const l of mrz){
-      const hit = l.match(/\d{6}[0-9<][MF]\d{6}[0-9<][A-Z<]{3}/);
-      if (hit && hit.index != null){
-        // Si vienen 2 líneas MRZ pegadas en una sola, tomamos el tramo que contiene fecha/sexo/nacionalidad.
-        l2 = l.slice(hit.index);
-        break;
+    const joinedMrz = mrz.join('');
+    let l2 = mrz.find(l => /^[A-Z0-9<]{9}[0-9<][A-Z]{3}\d{6}[0-9<][MF<]\d{6}[0-9<]/.test(l)) || '';
+    if (!l2){
+      for (const l of mrz){
+        const hit = l.match(/\d{6}[0-9<][MF]\d{6}[0-9<][A-Z<]{3}/);
+        if (hit && hit.index != null){
+          // Si vienen 2 líneas MRZ pegadas en una sola, tomamos el tramo que contiene fecha/sexo/nacionalidad.
+          l2 = l.slice(hit.index);
+          break;
+        }
       }
     }
     if (!l2) l2 = mrz.find(l => /\d{6}[0-9<][MF]\d{6}/.test(l)) || (mrz[1] || '');
@@ -239,12 +260,36 @@
       if (best.kind === 'DNI' && /^I[D<]/.test(l1)) out['Tipo de documento'] = 'DNI';
     }
 
+    if (!out['Nº Documento']){
+      const passJoined = joinedMrz.match(/([A-Z0-9<]{9})([0-9<])([A-Z]{3})(\d{6})([0-9<])([MF<])(\d{6})([0-9<])/);
+      if (passJoined){
+        const birthOk = fmtYYMMDD(passJoined[4]);
+        if (birthOk){
+          const doc = normalizeMrzDocCore(passJoined[1]);
+          if (doc.length >= 7 && doc.length <= 9){
+            out['Nº Documento'] = doc;
+            if (!out['Tipo de documento']) out['Tipo de documento'] = 'PASAPORTE';
+          }
+        }
+      }
+    }
+
     if (!out['Nº Documento'] && l1.length >= 14){
       const docRaw = normalizeDocCandidate(l1.slice(5, 14).replace(/</g, '').trim());
       if (isLikelyDocId(docRaw)) out['Nº Documento'] = docRaw;
     }
-    if (!out['Nº Documento'] && l2.length >= 10){
-      const doc2 = normalizeDocCandidate(l2.slice(0, 10).replace(/</g, ''));
+    if (!out['Nº Documento'] && l2.length >= 13){
+      const td3 = l2.match(/^([A-Z0-9<]{9})([0-9<])([A-Z]{3})/);
+      if (td3){
+        const docMrz = normalizeMrzDocCore(td3[1]);
+        if (docMrz.length >= 7 && docMrz.length <= 9){
+          out['Nº Documento'] = docMrz;
+          if (!out['Tipo de documento']) out['Tipo de documento'] = 'PASAPORTE';
+        }
+      }
+    }
+    if (!out['Nº Documento'] && l2.length >= 9){
+      const doc2 = normalizeDocCandidate(l2.slice(0, 9).replace(/</g, ''));
       if (isLikelyDocId(doc2)) out['Nº Documento'] = doc2;
     }
 
@@ -274,7 +319,7 @@
     if (nameLine){
       const parts = nameLine.split('<<');
       if (parts.length >= 2){
-        const ap = cleanPersonName(parts[0].replace(/<+/g, ' '));
+        const ap = cleanMrzSurname(parts[0]);
         const nom = cleanPersonName(parts.slice(1).join(' ').replace(/<+/g, ' '));
         if (ap) out['Apellidos'] = ap;
         if (nom) out['Nombre'] = nom;
@@ -325,6 +370,10 @@
       const birth = fmtYYMMDD(m[4]);
       const sx = String(m[6] || '').toUpperCase();
       if (!birth) continue;
+      const doc = normalizeMrzDocCore(m[1]);
+      if (doc.length >= 7 && doc.length <= 9){
+        out['Nº Documento'] = doc;
+      }
       out['Fecha de nacimiento'] = birth;
       if (sx === 'M') out['Sexo'] = 'MASCULINO';
       if (sx === 'F') out['Sexo'] = 'FEMENINO';
@@ -355,6 +404,7 @@
         break;
       }
     }
+    if (out['Nº Documento']) out['Tipo de documento'] = 'PASAPORTE';
     return out;
   }
 
@@ -381,6 +431,8 @@
     if (!out['Fecha de nacimiento'] && passMrz['Fecha de nacimiento']) out['Fecha de nacimiento'] = passMrz['Fecha de nacimiento'];
     if (!out['Sexo'] && passMrz['Sexo']) out['Sexo'] = passMrz['Sexo'];
     if (!out['Nacionalidad'] && passMrz['Nacionalidad']) out['Nacionalidad'] = passMrz['Nacionalidad'];
+    if (!out['Nº Documento'] && passMrz['Nº Documento']) out['Nº Documento'] = passMrz['Nº Documento'];
+    if (!out['Tipo de documento'] && passMrz['Tipo de documento']) out['Tipo de documento'] = passMrz['Tipo de documento'];
 
     if (!out['Apellidos'] || !out['Nombre']){
       const mrzName = lines
@@ -654,9 +706,9 @@
     if (ref){
       const cs = window.getComputedStyle(ref);
       const props = [
-        'minWidth','width','height','borderRadius','padding','fontSize','lineHeight',
-        'border','background','color','textShadow','backdropFilter','-webkit-backdrop-filter',
-        'boxShadow','fontFamily','fontWeight','letterSpacing'
+        'min-width','min-height','width','height','border-radius','padding','font-size','line-height',
+        'border','background','color','text-shadow','backdrop-filter','-webkit-backdrop-filter',
+        'box-shadow','font-family','font-weight','letter-spacing'
       ];
       for (const p of props){
         const v = cs.getPropertyValue(p);
@@ -681,6 +733,9 @@
     btn.style.right = '6px';
     btn.style.bottom = '6px';
     btn.style.zIndex = '4';
+    // Símbolo algo mayor, manteniendo mismo estilo de botón que back/girar.
+    btn.style.fontSize = '24px';
+    btn.style.lineHeight = '1';
   }
 
   function getOverlayFi(){

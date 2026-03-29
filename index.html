@@ -53,7 +53,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="compa.css?v=22">
+  <link rel="stylesheet" href="compa.css?v=23">
   <link rel="stylesheet" href="glass_real_lighting.css?v=3">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -119,7 +119,7 @@
 <div id="bg" aria-hidden="true"></div>
 <div id="app">
   <header class="hero" aria-label="Cabecera institucional">
-    <h1>COMPA·POL</h1>
+    <h1 data-title="COMPA·POL">COMPA·POL</h1>
     <div id="themeHoldZone" aria-hidden="true"></div>
   </header>
   <p id="status" class="muted" aria-live="polite"></p>
@@ -128,9 +128,32 @@
 
 <div id="topDock">
   <div class="emoji-row">
-    <label for="f" class="filebtn">📷</label>
-    <button id="btnToggleFili" type="button">👤<span id="filiCountBadge" aria-hidden="true"></span></button>
-    <button id="btnToggleCompare" type="button">📝</button>
+    <label for="f" class="filebtn" aria-label="Añadir fotos">
+      <span class="btn-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M5 7.5h3l1.3-2h5.4l1.3 2h3A1.8 1.8 0 0 1 21 9.3v8.4A1.8 1.8 0 0 1 19.2 19.5H4.8A1.8 1.8 0 0 1 3 17.7V9.3A1.8 1.8 0 0 1 4.8 7.5Z"></path>
+          <circle cx="12" cy="13.4" r="3.2"></circle>
+        </svg>
+      </span>
+    </label>
+    <button id="btnToggleFili" type="button" aria-label="Añadir filiación">
+      <span class="btn-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M4.5 19.2c1.3-2.9 3.8-4.2 7.5-4.2s6.2 1.3 7.5 4.2"></path>
+          <circle cx="12" cy="8.3" r="3.4"></circle>
+          <path d="M19 5.2v3.8M17.1 7.1h3.8"></path>
+        </svg>
+      </span>
+      <span id="filiCountBadge" aria-hidden="true"></span>
+    </button>
+    <button id="btnToggleCompare" type="button" aria-label="Alternar comparecencia">
+      <span class="btn-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M7 4.5h10a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5V6A1.5 1.5 0 0 1 7 4.5Z"></path>
+          <path d="M9 9.2h6M9 12.2h6M9 15.2h4.2"></path>
+        </svg>
+      </span>
+    </button>
   </div>
 </div>
 
@@ -173,9 +196,38 @@
     </div>
   <div class="card" id="bottomDock">
     <div class="emoji-row">
-      <button id="btnDescargar" type="button">↓</button>
-      <button id="btnCloud" type="button">🛠️</button>
-      <button id="btnLimpiar" type="button">⟳</button>
+      <button id="btnDescargar" type="button" aria-label="Descargar">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M12 4.8v9.4"></path>
+            <path d="M8.5 11.6 12 15.2l3.5-3.6"></path>
+            <path d="M5.2 18.5h13.6"></path>
+          </svg>
+        </span>
+      </button>
+      <button id="btnCloud" type="button" aria-label="Servicios">
+        <span class="btn-icon icon-tool" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M5.5 8.2h13a1.7 1.7 0 0 1 1.7 1.7v7.1a1.7 1.7 0 0 1-1.7 1.7h-13A1.7 1.7 0 0 1 3.8 17v-7.1a1.7 1.7 0 0 1 1.7-1.7Z"></path>
+            <path d="M9.2 8.2V6.8A1.8 1.8 0 0 1 11 5h2a1.8 1.8 0 0 1 1.8 1.8v1.4"></path>
+            <path d="M3.8 12h16.4"></path>
+          </svg>
+        </span>
+        <span class="btn-icon icon-home" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M4.8 10.7 12 5l7.2 5.7"></path>
+            <path d="M6.8 10.9v7.6h10.4v-7.6"></path>
+          </svg>
+        </span>
+      </button>
+      <button id="btnLimpiar" type="button" aria-label="Limpiar">
+        <span class="btn-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M19 12a7 7 0 1 1-2.1-5"></path>
+            <path d="M19 6.5v4.3h-4.3"></path>
+          </svg>
+        </span>
+      </button>
     </div>
   </div>
 </div>
@@ -344,6 +396,152 @@ const state = {
   abort: null
 };
 
+const CASE_STATE_KEY = 'COMPAPOL_CASE_STATE_V1';
+let _casePersistTimer = null;
+let _casePersistLastRaw = '';
+let _casePersistWarned = false;
+
+function safeClone(v){
+  try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return null; }
+}
+
+function hasCaseDataForPersistence(){
+  if (Array.isArray(state.images) && state.images.length > 0) return true;
+  if (state.lastJson && typeof state.lastJson === 'object' && Object.keys(state.lastJson).length > 0) return true;
+  if (state.aiJson && typeof state.aiJson === 'object' && Object.keys(state.aiJson).length > 0) return true;
+  if (state.thumbOverrides && typeof state.thumbOverrides === 'object' && Object.keys(state.thumbOverrides).length > 0) return true;
+  return false;
+}
+
+function buildCasePersistPayload(opts){
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const slim = !!options.slim;
+  try{
+    if (el.docOut) persistCompareTextToState(el.docOut.value || "", { silent:true });
+  }catch(_){}
+  return {
+    v: 1,
+    savedAt: Date.now(),
+    slim,
+    state: {
+      images: slim ? [] : (safeClone(state.images) || []),
+      lastJson: safeClone(state.lastJson),
+      aiJson: slim ? null : safeClone(state.aiJson),
+      thumbOverrides: safeClone(state.thumbOverrides) || {}
+    },
+    ui: {
+      compareOn: document.body.classList.contains('compare-on'),
+      servicesOn: document.body.classList.contains('services-on')
+    }
+  };
+}
+
+function clearPersistedCaseState(){
+  try{ localStorage.removeItem(CASE_STATE_KEY); }catch(_){}
+  _casePersistLastRaw = '';
+}
+
+function persistCaseStateNow(opts){
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const force = !!options.force;
+
+  if (!force && !hasCaseDataForPersistence()){
+    clearPersistedCaseState();
+    return true;
+  }
+
+  try{
+    const payload = buildCasePersistPayload({ slim:false });
+    const raw = JSON.stringify(payload);
+    if (!force && raw === _casePersistLastRaw) return true;
+    localStorage.setItem(CASE_STATE_KEY, raw);
+    _casePersistLastRaw = raw;
+    return true;
+  }catch(_){
+    try{
+      const slimPayload = buildCasePersistPayload({ slim:true });
+      const slimRaw = JSON.stringify(slimPayload);
+      if (!force && slimRaw === _casePersistLastRaw) return true;
+      localStorage.setItem(CASE_STATE_KEY, slimRaw);
+      _casePersistLastRaw = slimRaw;
+      if (!_casePersistWarned){
+        _casePersistWarned = true;
+        setStatus('Persistencia parcial: solo datos de filiación (sin imágenes).', 'muted');
+      }
+      return true;
+    }catch(__){
+      return false;
+    }
+  }
+}
+
+function schedulePersistCaseState(){
+  if (_casePersistTimer) clearTimeout(_casePersistTimer);
+  _casePersistTimer = setTimeout(() => {
+    _casePersistTimer = null;
+    persistCaseStateNow();
+  }, 220);
+}
+
+function restorePersistedCaseState(){
+  let raw = '';
+  try{ raw = localStorage.getItem(CASE_STATE_KEY) || ''; }catch(_){}
+  if (!raw) return false;
+
+  let saved = null;
+  try{ saved = JSON.parse(raw); }catch(_){}
+  if (!saved || typeof saved !== 'object') return false;
+
+  _casePersistLastRaw = raw;
+
+  const st = (saved.state && typeof saved.state === 'object') ? saved.state : {};
+  state.images = Array.isArray(st.images) ? st.images.filter(Boolean) : [];
+  state.lastJson = (st.lastJson && typeof st.lastJson === 'object') ? st.lastJson : null;
+  state.aiJson = (st.aiJson && typeof st.aiJson === 'object') ? st.aiJson : null;
+  state.thumbOverrides = (st.thumbOverrides && typeof st.thumbOverrides === 'object') ? st.thumbOverrides : {};
+
+  renderThumbs();
+  if (state.lastJson){
+    renderFiliaciones(state.lastJson);
+  } else if (el.filiacionesOut){
+    el.filiacionesOut.innerHTML = '';
+  }
+
+  if (el.docOut){
+    el.docOut.value = getCompareTextCandidate(state.lastJson || {});
+  }
+
+  const ui = (saved.ui && typeof saved.ui === 'object') ? saved.ui : {};
+  document.body.classList.toggle('compare-on', !!ui.compareOn);
+  setServicesMode(!!ui.servicesOn);
+  setExportEnabled(!!state.lastJson);
+  updateFiliUI();
+  updateMainContentVisibility();
+  if (hasCaseDataForPersistence()) setStatus('Borrador restaurado.', 'muted');
+  return true;
+}
+
+function initCasePersistence(){
+  document.addEventListener('input', schedulePersistCaseState, true);
+  document.addEventListener('change', schedulePersistCaseState, true);
+  document.addEventListener('click', (ev) => {
+    const t = ev.target;
+    if (!(t instanceof Element)) return;
+    if (!t.closest('button, .filebtn')) return;
+    schedulePersistCaseState();
+  }, true);
+  window.addEventListener('pagehide', () => { persistCaseStateNow({ force:true }); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') persistCaseStateNow({ force:true });
+  });
+}
+
+try{
+  window.__compaSchedulePersist = schedulePersistCaseState;
+  window.__compaPersistNow = persistCaseStateNow;
+  window.__compaClearPersistedCaseState = clearPersistedCaseState;
+}catch(_){}
+
 function updateMainContentVisibility(){
   const hasFili = getFiliCount() > 0;
   const has =
@@ -357,7 +555,7 @@ function updateMainContentVisibility(){
 function setServicesMode(on){
   const enabled = !!on;
   document.body.classList.toggle('services-on', enabled);
-  if (el.btnCloud) el.btnCloud.textContent = enabled ? '🏠' : '🛠️';
+  schedulePersistCaseState();
 }
 
 const THEME_KEY = 'COMPAPOL_THEME_V1';
@@ -858,6 +1056,7 @@ if (Number.isFinite(f) && f > i) { im.fi = f - 1; im.name = `Filiación ${im.fi+
       setExportEnabled(!!state.lastJson);
     });
   });
+  schedulePersistCaseState();
 }
 
 function setBusy(on){
@@ -957,7 +1156,9 @@ function getCompareTextCandidate(src){
   return "";
 }
 
-function persistCompareTextToState(text){
+function persistCompareTextToState(text, opts){
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const silent = !!options.silent;
   const v = String(text || "");
   if (!state.lastJson || typeof state.lastJson !== 'object') state.lastJson = {};
 
@@ -973,6 +1174,7 @@ function persistCompareTextToState(text){
   if (Object.prototype.hasOwnProperty.call(state.lastJson, 'texto')){
     state.lastJson.texto = v;
   }
+  if (!silent) schedulePersistCaseState();
 }
 
 function syncCompareTextFromTextarea(){
@@ -1252,19 +1454,9 @@ if (el.btnCancelar) el.btnCancelar.onclick = () => {
   }
 
   const syncCompare = () => {
-    const cOn = document.body.classList.contains('compare-on');
-    if (bC){
-      bC.textContent = '📝';
-    }
-    if (bF){
-      if (bF.firstChild && bF.firstChild.nodeType === Node.TEXT_NODE) {
-        bF.firstChild.nodeValue = '👤';
-      } else {
-        bF.insertAdjacentText('afterbegin', '👤');
-      }
-    }
     updateMainContentVisibility();
     updateFiliUI();
+    schedulePersistCaseState();
   };
 
   document.body.classList.remove('compare-on');
@@ -1395,6 +1587,7 @@ el.btnLimpiar.onclick = () => {
   if (!ok) return;
 
   try{ window.__compaCaseBundleClearDraft?.(); }catch{}
+  try{ clearPersistedCaseState(); }catch{}
 
   state.images = [];
   state.lastJson = null;
@@ -1412,21 +1605,15 @@ el.btnLimpiar.onclick = () => {
   setBusy(false);
   closeFiliacionOverlay(true);
   document.body.classList.remove('compare-on');
-  if (el.btnToggleCompare){
-    el.btnToggleCompare.textContent = '📝';
-  }
-  if (el.btnToggleFili){
-    const bF = el.btnToggleFili;
-    if (bF.firstChild && bF.firstChild.nodeType === Node.TEXT_NODE) bF.firstChild.nodeValue = '👤';
-    else bF.insertAdjacentText('afterbegin', '👤');
-  }
   setStatus("Limpio.");
   updateFiliUI();
   updateMainContentVisibility();
 };
 
+const _caseRestored = restorePersistedCaseState();
+if (!_caseRestored) setServicesMode(false);
+initCasePersistence();
 bootstrapAuthGate();
-setServicesMode(false);
 initHiddenThemeToggle();
 
 </script>
@@ -1437,9 +1624,9 @@ initHiddenThemeToggle();
 <script src="js/compa_crypto_resize.js?v=1"></script>
 <script src="js/filiaciones_ui.js?v=4"></script>
 <script src="js/compa_overlay_media.js?v=11"></script>
-<script src="js/ios_clipboard_parser.js?v=15"></script>
+<script src="js/ios_clipboard_parser.js?v=16"></script>
 <script src="js/prewarm_agent.js?v=1"></script>
-<script src="js/denupol_modal_bundle.js?v=12"></script>
+<script src="js/denupol_modal_bundle.js?v=13"></script>
 <script src="js/servicios.js?v=1"></script>
 </body>
 </html>

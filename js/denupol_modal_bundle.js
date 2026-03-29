@@ -57,6 +57,22 @@
     try { if (typeof state !== "undefined" && state && state.lastJson && typeof state.lastJson === "object") return safeJSON(state.lastJson) || {}; } catch(_) {}
     return {};
   }
+  function normalizeExistingForBundle(v){
+    let cur = safeJSON(v) || {};
+    let guard = 0;
+    while (
+      cur &&
+      typeof cur === "object" &&
+      cur.schemaVersion === "caseBundle.v1" &&
+      cur.previo &&
+      typeof cur.previo === "object" &&
+      guard < 4
+    ){
+      cur = safeJSON(cur.previo) || {};
+      guard += 1;
+    }
+    return (cur && typeof cur === "object") ? cur : {};
+  }
 
   function normalizeAgents(text){ return String(text || "").split(/[;,\n]/).map(s => s.trim()).filter(Boolean); }
   function normalizeIndicativos(v){
@@ -424,7 +440,7 @@
     function buildBundle(channel){
       const now = new Date().toISOString();
       const data = read();
-      const prev = existingData();
+      const prev = normalizeExistingForBundle(existingData());
       const prevDoc = (typeof prev.doc === "string" && prev.doc.trim()) ? prev.doc : (
         (typeof prev.comparecencia === "string" && prev.comparecencia.trim()) ? prev.comparecencia : ""
       );
@@ -546,6 +562,52 @@
       if (typeof state !== "undefined" && state) state.lastJson = bundle;
     } catch(_) {}
   }
+  function restoreStateAfterDownload(previous){
+    try{
+      if (typeof state !== "undefined" && state){
+        state.lastJson = (previous && typeof previous === "object") ? (safeJSON(previous) || {}) : null;
+      }
+    }catch(_){}
+    try{
+      if (typeof window.renderFiliaciones === "function"){
+        if (previous && typeof previous === "object"){
+          window.renderFiliaciones(previous);
+        }else{
+          const out = document.getElementById("filiacionesOut");
+          if (out) out.innerHTML = "";
+        }
+      }
+    }catch(_){}
+    try{
+      if (typeof window.setExportEnabled === "function"){
+        window.setExportEnabled(!!(previous && typeof previous === "object"));
+      }
+    }catch(_){}
+    try{ if (typeof window.__compaSchedulePersist === "function") window.__compaSchedulePersist(); }catch(_){}
+  }
+  async function downloadBundleEncrypted(bundle){
+    if (!bundle || typeof bundle !== "object") return;
+    if (!window.CompaCifrado?.wrapEncryptedJSON){
+      try{ if (typeof window.setStatus === "function") window.setStatus("Falta cifrado_descarga.js", "err"); }catch(_){}
+      return;
+    }
+    const rnd = Math.floor(1000 + Math.random() * 9000);
+    const wrappedText = await window.CompaCifrado.wrapEncryptedJSON(bundle);
+    if (typeof window.downloadText === "function"){
+      window.downloadText(`Proyecto-${rnd}.enc.json`, wrappedText);
+    } else {
+      const blob = new Blob([wrappedText], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Proyecto-${rnd}.enc.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    try{ if (typeof window.setStatus === "function") window.setStatus("JSON ENCRIPTADO descargado.", "ok"); }catch(_){}
+  }
 
   function hookButton(btnId, mode){
     const btn = document.getElementById(btnId);
@@ -554,11 +616,22 @@
     btn.onclick = async function(ev){
       if (btn.disabled) return;
       ev && ev.preventDefault && ev.preventDefault();
+      try{ if (typeof window.syncCompareTextFromTextarea === "function") window.syncCompareTextFromTextarea(); }catch(_){}
       await ensureCallejero();
       wireModal(mode, async (bundle) => {
         if (!bundle) return;
+        if (mode === "download"){
+          await downloadBundleEncrypted(bundle);
+          try{ if (typeof window.__compaPersistNow === "function") window.__compaPersistNow({ force:true }); }catch(_){}
+          return;
+        }
+        const previous = existingData();
         setBundleAsCurrent(bundle);
-        if (typeof original === "function") await original.call(this, ev);
+        try{
+          if (typeof original === "function") await original.call(this, ev);
+        }finally{
+          restoreStateAfterDownload(previous);
+        }
       });
     };
     btn.dataset.casebundleHooked = "1";
