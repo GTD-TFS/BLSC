@@ -114,6 +114,16 @@
       .replace(/[^A-Z0-9<]/g, '');
   }
 
+  function isLikelyMrzLine(line){
+    const l = String(line || '');
+    if (!/^[A-Z0-9<]{20,}$/.test(l)) return false;
+    if (l.includes('<<')) return true;
+    if (/^[PIAC][<A-Z0-9]/.test(l) && (l.includes('<') || /\d/.test(l))) return true;
+    if (/^[A-Z0-9<]{9}[0-9<][A-Z]{3}\d{6}[0-9<][MF<]\d{6}[0-9<]/.test(l)) return true;
+    if (/\d{6}[0-9<][MF<]\d{6}[0-9<]/.test(l) && /[A-Z]{3}/.test(l)) return true;
+    return false;
+  }
+
   function normalizeMrzDocCore(v){
     return String(v || '')
       .toUpperCase()
@@ -205,7 +215,7 @@
   function parseMrz(lines){
     const mrz = (lines || [])
       .map(normalizeMrzLine)
-      .filter(l => l.length >= 20 && l.includes('<') && /[A-Z0-9]/.test(l));
+      .filter(isLikelyMrzLine);
 
     const out = {};
     if (!mrz.length) return out;
@@ -235,6 +245,16 @@
     if (/^I[D<]/.test(l1)) out['Tipo de documento'] = 'DNI';
     if (/^P</.test(l1)) out['Tipo de documento'] = 'PASAPORTE';
 
+    // Pasaporte TD3: Nº documento = 9 primeros chars de línea 2 (antes de dígito de control + ISO).
+    const td3FromL2 = l2.match(/^([A-Z0-9<]{9})([0-9<])([A-Z]{3})/);
+    if (td3FromL2){
+      const docMrz = normalizeMrzDocCore(td3FromL2[1]);
+      if (docMrz.length >= 7 && docMrz.length <= 9){
+        out['Nº Documento'] = docMrz;
+        out['Tipo de documento'] = 'PASAPORTE';
+      }
+    }
+
     const line1NoFill = l1.replace(/</g, '');
     const allDocHits = [];
     const dniRe = /\d{8}[A-Z]/g;
@@ -243,7 +263,7 @@
     while ((m = dniRe.exec(line1NoFill)) !== null) allDocHits.push({ v: m[0], idx: m.index, kind: 'DNI' });
     while ((m = nieRe.exec(line1NoFill)) !== null) allDocHits.push({ v: m[0], idx: m.index, kind: 'NIE' });
     allDocHits.sort((a, b) => b.idx - a.idx); // prioriza el que aparece más al final de la línea 1 MRZ
-    if (allDocHits.length){
+    if (!out['Nº Documento'] && allDocHits.length){
       const best = allDocHits[0];
       out['Nº Documento'] = best.v;
       if (best.kind === 'NIE') out['Tipo de documento'] = 'NIE';
@@ -264,18 +284,11 @@
       }
     }
 
-    if (!out['Nº Documento'] && l1.length >= 14){
-      const docRaw = normalizeDocCandidate(l1.slice(5, 14).replace(/</g, '').trim());
-      if (isLikelyDocId(docRaw)) out['Nº Documento'] = docRaw;
-    }
-    if (!out['Nº Documento'] && l2.length >= 13){
-      const td3 = l2.match(/^([A-Z0-9<]{9})([0-9<])([A-Z]{3})/);
-      if (td3){
-        const docMrz = normalizeMrzDocCore(td3[1]);
-        if (docMrz.length >= 7 && docMrz.length <= 9){
-          out['Nº Documento'] = docMrz;
-          if (!out['Tipo de documento']) out['Tipo de documento'] = 'PASAPORTE';
-        }
+    if (!out['Nº Documento'] && !/^P</.test(l1) && l1.length >= 14){
+      const rawSlice = l1.slice(5, 14).replace(/</g, '').trim();
+      if (/\d/.test(rawSlice)){
+        const docRaw = normalizeDocCandidate(rawSlice);
+        if (isLikelyDocId(docRaw)) out['Nº Documento'] = docRaw;
       }
     }
     if (!out['Nº Documento'] && l2.length >= 9){
