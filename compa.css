@@ -848,6 +848,22 @@ html.overlay-open{
   input, select, textarea{
     font-size:16px;
   }
+  /* iOS/Android: evita artefacto gris en la parte alta de los botones glass */
+  .filebtn::before,
+  #btnToggleFili::before,
+  #btnToggleCompare::before,
+  #btnEnviar::before,
+  #btnDescargar::before,
+  #btnLimpiar::before,
+  .filebtn::after,
+  #btnToggleFili::after,
+  #btnToggleCompare::after,
+  #btnEnviar::after,
+  #btnDescargar::after,
+  #btnLimpiar::after{
+    content:none !important;
+    display:none !important;
+  }
 }
 
 /* =========================
