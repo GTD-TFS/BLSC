@@ -476,6 +476,7 @@ body.services-on #btnCloud .icon-tool{display:none}
 #btnToggleCompare,
 #btnEnviar,
 #btnDescargar,
+#btnCloud,
 #btnLimpiar{
   position:relative;
   overflow:hidden;
@@ -498,6 +499,7 @@ body.services-on #btnCloud .icon-tool{display:none}
 #btnToggleCompare::before,
 #btnEnviar::before,
 #btnDescargar::before,
+#btnCloud::before,
 #btnLimpiar::before{
   content:"";
   position:absolute;
@@ -516,6 +518,7 @@ body.services-on #btnCloud .icon-tool{display:none}
 #btnToggleCompare::after,
 #btnEnviar::after,
 #btnDescargar::after,
+#btnCloud::after,
 #btnLimpiar::after{
   content:"";
   position:absolute;
@@ -854,12 +857,14 @@ html.overlay-open{
   #btnToggleCompare::before,
   #btnEnviar::before,
   #btnDescargar::before,
+  #btnCloud::before,
   #btnLimpiar::before,
   .filebtn::after,
   #btnToggleFili::after,
   #btnToggleCompare::after,
   #btnEnviar::after,
   #btnDescargar::after,
+  #btnCloud::after,
   #btnLimpiar::after{
     content:none !important;
     display:none !important;
